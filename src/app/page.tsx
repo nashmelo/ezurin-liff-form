@@ -1,66 +1,523 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import liff from "@line/liff";
 import styles from "./page.module.css";
 
+const LIFF_ID = "2008636043-gkvJXdpJ"; // 開発用 LIFF ID
+
+type FormData = {
+  name: string;
+  lineName: string;
+  phone: string;
+  postalCode: string;
+  prefecture: string;
+  city: string;
+  address1: string;
+  building: string;
+  buildingType: string;
+  parking: "あり" | "なし" | "";
+  elevator: "あり" | "なし" | "";
+  service: string;
+  note: string;
+  images: File[]; // 添付画像
+};
+
+const initialFormData: FormData = {
+  name: "",
+  lineName: "",
+  phone: "",
+  postalCode: "",
+  prefecture: "",
+  city: "",
+  address1: "",
+  building: "",
+  buildingType: "",
+  parking: "",
+  elevator: "",
+  service: "",
+  note: "",
+  images: [],
+};
+
 export default function Home() {
+  const [form, setForm] = useState<FormData>(initialFormData);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [liffError, setLiffError] = useState<string | null>(null);
+  const [postalStatus, setPostalStatus] = useState<string | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0); // 添付画像リセット用
+
+  // 🔰 LIFF 初期化して LINE プロフィールから名前を取得（lineName だけ）
+  useEffect(() => {
+    const initLiff = async () => {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        const profile = await liff.getProfile();
+
+        setForm((prev) => ({
+          ...prev,
+          lineName: prev.lineName || profile.displayName,
+          // name は自動で埋めない（本名を入力してもらう）
+        }));
+      } catch (e) {
+        console.error("LIFF init error", e);
+        setLiffError(
+          "LINEとの連携に失敗しましたが、フォームの入力・送信は可能です。"
+        );
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      initLiff();
+    }
+  }, []);
+
+  // 郵便番号 → 住所自動補完
+  const lookupAddressFromPostalCode = async (zipcode: string) => {
+    if (!zipcode || zipcode.length !== 7) return;
+    setPostalStatus("住所を検索しています…");
+
+    try {
+      const res = await fetch(
+        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${encodeURIComponent(
+          zipcode
+        )}`
+      );
+      const data = await res.json();
+
+      if (data.status === 200 && data.results && data.results[0]) {
+        const r = data.results[0];
+        const prefecture = r.address1 || "";
+        const city = `${r.address2 || ""}${r.address3 || ""}`.trim();
+
+        setForm((prev) => ({
+          ...prev,
+          prefecture: prev.prefecture || prefecture,
+          city: prev.city || city,
+        }));
+        setPostalStatus(null);
+      } else {
+        setPostalStatus("住所が見つかりませんでした。手入力してください。");
+      }
+    } catch (e) {
+      console.error(e);
+      setPostalStatus("住所検索に失敗しました。手入力してください。");
+    }
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
+
+    if (name === "postalCode") {
+      // 数字だけにして7桁なら検索
+      const digits = value.replace(/\D/g, "");
+      setForm((prev) => ({ ...prev, postalCode: digits }));
+
+      if (digits.length === 7) {
+        lookupAddressFromPostalCode(digits);
+      } else {
+        setPostalStatus(null);
+      }
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).slice(0, 3); // 最大3枚
+    setForm((prev) => ({
+      ...prev,
+      images: files,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!form.name || !form.phone || !form.service) {
+      setError("お名前・電話番号・ご希望サービスは必須です。");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // ★ このあとで
+      //   - /api/form にPOSTしてLINEに通知
+      //   - あるいはkintoneに登録
+      // などを実装していく
+      console.log("送信データ:", {
+        ...form,
+        images: form.images.map((f) => f.name),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      setSubmitted(true);
+      setForm(initialFormData);
+      setFileInputKey((k) => k + 1); // 添付画像 input をリセット
+    } catch (e) {
+      console.error(e);
+      setError(
+        "送信中にエラーが発生しました。時間をおいて再度お試しください。"
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className={styles.main}>
+      <div className={styles.center}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 480,
+            background: "white",
+            borderRadius: 12,
+            padding: 20,
+            boxShadow: "0 8px 18px rgba(0,0,0,0.06)",
+          }}
+        >
+          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+            不用品回収・片付けご相談フォーム
+          </h1>
+          <p style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
+            必要事項をご入力のうえ送信してください。
+            <br />
+            担当者よりLINEまたはお電話でご連絡いたします。
           </p>
+
+          {liffError && (
+            <div
+              style={{
+                background: "#fff7e6",
+                color: "#ad6800",
+                padding: "8px 10px",
+                borderRadius: 6,
+                fontSize: 12,
+                marginBottom: 12,
+              }}
+            >
+              {liffError}
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                background: "#ffe5e5",
+                color: "#b00020",
+                padding: "8px 10px",
+                borderRadius: 6,
+                fontSize: 12,
+                marginBottom: 12,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {submitted && (
+            <div
+              style={{
+                background: "#e6f7ff",
+                color: "#0050b3",
+                padding: "8px 10px",
+                borderRadius: 6,
+                fontSize: 12,
+                marginBottom: 12,
+              }}
+            >
+              送信ありがとうございました。担当者からの返信をお待ちください。
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* お客様情報 */}
+            <SectionTitle label="お客様情報" />
+
+            <Field label="お名前（本名）" required>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                type="text"
+                placeholder="山田 太郎"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="LINEのお名前（自動取得）">
+              <input
+                name="lineName"
+                value={form.lineName}
+                onChange={handleChange}
+                type="text"
+                placeholder="LINE上の表示名"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="電話番号" required>
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                type="tel"
+                placeholder="09012345678"
+                style={inputStyle}
+              />
+            </Field>
+
+            {/* 回収現場住所 */}
+            <SectionTitle label="回収現場住所" />
+
+            <Field label="郵便番号（7桁）">
+              <input
+                name="postalCode"
+                value={form.postalCode}
+                onChange={handleChange}
+                type="text"
+                placeholder="1234567"
+                style={inputStyle}
+              />
+              {postalStatus && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 11,
+                    color: "#888",
+                  }}
+                >
+                  {postalStatus}
+                </div>
+              )}
+            </Field>
+
+            <Field label="都道府県">
+              <input
+                name="prefecture"
+                value={form.prefecture}
+                onChange={handleChange}
+                type="text"
+                placeholder="栃木県"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="市区町村">
+              <input
+                name="city"
+                value={form.city}
+                onChange={handleChange}
+                type="text"
+                placeholder="大田原市 浅香"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="番地">
+              <input
+                name="address1"
+                value={form.address1}
+                onChange={handleChange}
+                type="text"
+                placeholder="2-3391-11"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="建物名・部屋番号（任意）">
+              <input
+                name="building"
+                value={form.building}
+                onChange={handleChange}
+                type="text"
+                placeholder="DIシオンスクエア302"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="建物種類">
+              <select
+                name="buildingType"
+                value={form.buildingType}
+                onChange={handleChange}
+                style={inputStyle}
+              >
+                <option value="">選択してください</option>
+                <option value="戸建て">戸建て</option>
+                <option value="マンション・アパート">
+                  マンション・アパート
+                </option>
+                <option value="事務所・店舗">事務所・店舗</option>
+                <option value="その他">その他</option>
+              </select>
+            </Field>
+
+            <Field label="駐車場の有無">
+              <select
+                name="parking"
+                value={form.parking}
+                onChange={handleChange}
+                style={inputStyle}
+              >
+                <option value="">選択してください</option>
+                <option value="あり">あり</option>
+                <option value="なし">なし</option>
+              </select>
+            </Field>
+
+            <Field label="エレベーターの有無">
+              <select
+                name="elevator"
+                value={form.elevator}
+                onChange={handleChange}
+                style={inputStyle}
+              >
+                <option value="">選択してください</option>
+                <option value="あり">あり</option>
+                <option value="なし">なし</option>
+              </select>
+            </Field>
+
+            {/* ご希望内容 */}
+            <SectionTitle label="ご希望のサービス" />
+
+            <Field label="サービス内容" required>
+              <select
+                name="service"
+                value={form.service}
+                onChange={handleChange}
+                style={inputStyle}
+              >
+                <option value="">選択してください</option>
+                <option value="不用品回収">不用品回収</option>
+                <option value="遺品整理・生前整理">遺品整理・生前整理</option>
+                <option value="ゴミ屋敷片付け">ゴミ屋敷片付け</option>
+                <option value="引越しに伴う回収">引越しに伴う回収</option>
+                <option value="その他">その他</option>
+              </select>
+            </Field>
+
+            <Field label="ご相談内容・回収希望物（任意）">
+              <textarea
+                name="note"
+                value={form.note}
+                onChange={handleChange}
+                rows={4}
+                placeholder="間取り（例：2DK）やおおよその荷物量、希望日程などをご記入ください。"
+                style={{ ...inputStyle, resize: "vertical" }}
+              />
+            </Field>
+
+            <Field label="添付画像（任意・最大3枚）">
+              <input
+                key={fileInputKey}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                style={inputStyle}
+              />
+              {form.images.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 11,
+                    color: "#555",
+                  }}
+                >
+                  選択中:
+                  {form.images.map((f) => f.name).join(" / ")}
+                </div>
+              )}
+            </Field>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                width: "100%",
+                marginTop: 12,
+                padding: "10px 16px",
+                borderRadius: 999,
+                border: "none",
+                background: submitting ? "#999" : "#00c300",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: submitting ? "default" : "pointer",
+              }}
+            >
+              {submitting ? "送信中..." : "この内容で送信する"}
+            </button>
+          </form>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
+
+// 小コンポーネント
+type FieldProps = {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+};
+
+const Field: React.FC<FieldProps> = ({ label, required, children }) => (
+  <div style={{ marginBottom: 10 }}>
+    <label
+      style={{
+        display: "block",
+        fontSize: 12,
+        fontWeight: 600,
+        marginBottom: 4,
+      }}
+    >
+      {label}
+      {required && <span style={{ color: "#d00", marginLeft: 4 }}>＊</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const SectionTitle: React.FC<{ label: string }> = ({ label }) => (
+  <h2
+    style={{
+      fontSize: 13,
+      fontWeight: 700,
+      marginTop: 18,
+      marginBottom: 6,
+      borderLeft: "3px solid #00c300",
+      paddingLeft: 8,
+    }}
+  >
+    {label}
+  </h2>
+);
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #ddd",
+  fontSize: 13,
+  boxSizing: "border-box",
+};
