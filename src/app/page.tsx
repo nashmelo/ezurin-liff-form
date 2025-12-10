@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import liff from "@line/liff";
 import styles from "./page.module.css";
 
-const LIFF_ID = "2008636043-gkvJXdpJ"; // 開発用 LIFF ID
+const LIFF_ID = "2008636045-8572KPnd"; // ★本番用 LIFF ID に変更
 
 type FormData = {
   name: string;
@@ -20,13 +20,11 @@ type FormData = {
   elevator: "あり" | "なし" | "";
   service: string;
   note: string;
-  images: File[]; // 添付画像
-  // 引越し先住所
+  images: File[];
   movePostalCode: string;
   movePrefecture: string;
   moveCity: string;
   moveAddress1: string;
-  // 希望引き取り日時（第1〜第3）
   pickupDate1: string;
   pickupDate2: string;
   pickupDate3: string;
@@ -64,9 +62,9 @@ export default function Home() {
   const [liffError, setLiffError] = useState<string | null>(null);
   const [postalStatus, setPostalStatus] = useState<string | null>(null);
   const [movePostalStatus, setMovePostalStatus] = useState<string | null>(null);
-  const [fileInputKey, setFileInputKey] = useState(0); // 添付画像リセット用
+  const [fileInputKey, setFileInputKey] = useState(0);
 
-  // 🔰 LIFF 初期化して LINE プロフィールから名前を取得（lineName だけ）
+  // 🔰 LIFF 初期化（LINE名だけ自動取得）
   useEffect(() => {
     const initLiff = async () => {
       try {
@@ -82,7 +80,6 @@ export default function Home() {
         setForm((prev) => ({
           ...prev,
           lineName: prev.lineName || profile.displayName,
-          // name は自動で埋めない（本名を入力してもらう）
         }));
       } catch (e) {
         console.error("LIFF init error", e);
@@ -97,7 +94,7 @@ export default function Home() {
     }
   }, []);
 
-  // 郵便番号 → 回収現場住所自動補完
+  // 郵便番号 → 回収現場住所
   const lookupAddressFromPostalCode = async (zipcode: string) => {
     if (!zipcode || zipcode.length !== 7) return;
     setPostalStatus("住所を検索しています…");
@@ -130,7 +127,7 @@ export default function Home() {
     }
   };
 
-  // 郵便番号 → 引越し先住所自動補完
+  // 郵便番号 → 引越し先住所
   const lookupMoveAddressFromPostalCode = async (zipcode: string) => {
     if (!zipcode || zipcode.length !== 7) return;
     setMovePostalStatus("住所を検索しています…");
@@ -173,7 +170,6 @@ export default function Home() {
     const { name, value } = e.target;
 
     if (name === "postalCode") {
-      // 回収現場：数字だけにして7桁なら検索
       const digits = value.replace(/\D/g, "");
       setForm((prev) => ({ ...prev, postalCode: digits }));
 
@@ -186,7 +182,6 @@ export default function Home() {
     }
 
     if (name === "movePostalCode") {
-      // 引越し先：数字だけにして7桁なら検索
       const digits = value.replace(/\D/g, "");
       setForm((prev) => ({ ...prev, movePostalCode: digits }));
 
@@ -202,7 +197,7 @@ export default function Home() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []); // リミット無し（選択した分全部）
+    const files = Array.from(e.target.files || []);
     setForm((prev) => ({
       ...prev,
       images: files,
@@ -221,38 +216,88 @@ export default function Home() {
     try {
       setSubmitting(true);
 
-      // 送信時点の値をコピー（リセット前に確保）
-      const currentForm: FormData = {
-        ...form,
-        images: [...form.images],
-      };
+      // ✏️ トークに流すまとめテキストを生成
+      const summaryLines = [
+        "💬 お問い合わせありがとうございます！",
+        "",
+        "以下の内容でご相談を承りました。",
+        "",
+        `【お名前】${form.name}`,
+        `【LINE名】${form.lineName || "（未入力）"}`,
+        `【電話番号】${form.phone}`,
+        "",
+        "■ 回収現場住所",
+        `〒${form.postalCode || "（未入力）"}`,
+        `${form.prefecture || ""}${form.city || ""}${form.address1 || ""}`,
+        `${form.building || ""}`,
+        "",
+        `【建物種類】${form.buildingType || "（未入力）"}`,
+        `【駐車場】${form.parking || "（未入力）"}`,
+        `【エレベーター】${form.elevator || "（未入力）"}`,
+        "",
+        `■ ご希望サービス：${form.service}`,
+      ];
 
-      // 🎫 トーク画面に「まとめメッセージ」をユーザーの発言として送る
+      if (form.service === "引越し") {
+        summaryLines.push(
+          "",
+          "■ 引越し先住所",
+          `〒${form.movePostalCode || "（未入力）"}`,
+          `${form.movePrefecture || ""}${form.moveCity || ""}${
+            form.moveAddress1 || ""
+          }`
+        );
+      }
+
+      summaryLines.push(
+        "",
+        "■ お引き取り希望日時",
+        `第1希望：${form.pickupDate1 || "（未入力）"}`,
+        `第2希望：${form.pickupDate2 || "（未入力）"}`,
+        `第3希望：${form.pickupDate3 || "（未入力）"}`
+      );
+
+      if (form.note) {
+        summaryLines.push("", "■ ご相談内容・回収希望物", form.note);
+      }
+
+      if (form.images.length > 0) {
+        summaryLines.push(
+          "",
+          `■ 添付画像枚数：${form.images.length}枚`
+        );
+      }
+
+      const summaryText = summaryLines.join("\n");
+
+      console.log("送信データ（デバッグ用）:", {
+        ...form,
+        images: form.images.map((f) => f.name),
+      });
+
+      // 🔔 LINEトークにユーザー名義でメッセージ送信
       if (liff.isInClient()) {
         try {
           await liff.sendMessages([
             {
               type: "text",
-              text: buildSummaryMessage(currentForm),
+              text: summaryText,
             },
           ]);
         } catch (err) {
           console.error("liff.sendMessages error", err);
-          // 失敗してもフォーム自体は通す
         }
+      } else {
+        console.log("LINEアプリ外からのアクセスのため、sendMessagesはスキップ");
       }
 
-      // （必要ならここで /api/form に POST したり kintone に登録したり）
-      console.log("送信データ:", {
-        ...currentForm,
-        images: currentForm.images.map((f) => f.name),
-      });
+      // （このあと /api/form や kintone 連携を追加予定）
 
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       setSubmitted(true);
       setForm(initialFormData);
-      setFileInputKey((k) => k + 1); // 添付画像 input をリセット
+      setFileInputKey((k) => k + 1);
     } catch (e) {
       console.error(e);
       setError(
@@ -326,7 +371,7 @@ export default function Home() {
                 marginBottom: 12,
               }}
             >
-              送信ありがとうございました。担当者からの返信をお待ちください。
+              送信ありがとうございました。トーク画面のメッセージと、担当者からの返信をお待ちください。
             </div>
           )}
 
@@ -498,7 +543,6 @@ export default function Home() {
               </select>
             </Field>
 
-            {/* 引越し選択時のみ表示 */}
             {form.service === "引越し" && (
               <>
                 <SectionTitle label="引越し先住所" />
@@ -560,7 +604,7 @@ export default function Home() {
               </>
             )}
 
-            {/* 希望引き取り日時 */}
+            {/* 希望日時 */}
             <SectionTitle label="お引き取り希望日時" />
 
             <Field label="第1希望（任意）">
@@ -600,7 +644,6 @@ export default function Home() {
                 onChange={handleChange}
                 rows={4}
                 placeholder="間取り（例：2DK）やおおよその荷物量、希望日程などをご記入ください。"
-                style={{ ...inputStyle, resize: "vertical" }}
               />
             </Field>
 
@@ -704,54 +747,4 @@ const dateTimeInputStyle: React.CSSProperties = {
   ...inputStyle,
   width: "96%",
   margin: "0 auto",
-};
-
-// 日時文字列を「2025/12/18 11:47」みたいな表示に整える
-const formatDateTime = (value?: string) => {
-  if (!value) return "回答なし";
-  return value.replace("T", " ");
-};
-
-// LINE に送る要約メッセージを作る
-const buildSummaryMessage = (form: FormData) => {
-  const moveAddressLines =
-    form.service === "引越し"
-      ? [
-          "［引越し先住所］",
-          `  〒${form.movePostalCode || ""}`,
-          `  ${form.movePrefecture || ""} ${form.moveCity || ""} ${
-            form.moveAddress1 || ""
-          }`,
-          "",
-        ]
-      : [];
-
-  return [
-    "💬 新しいメッセージが届きました",
-    "",
-    `🚩 【${form.service || "サービス未選択"}】ご相談フォーム`,
-    `［お名前］ ${form.name || "回答なし"}`,
-    `［LINE名］ ${form.lineName || "回答なし"}`,
-    `［電話番号］ ${form.phone || "回答なし"}`,
-    "",
-    "［回収現場住所］",
-    `  〒${form.postalCode || ""}`,
-    `  ${form.prefecture || ""} ${form.city || ""} ${form.address1 || ""}`,
-    `  ${form.building || ""}`,
-    "",
-    `［建物種類］ ${form.buildingType || "回答なし"}`,
-    `［駐車場の有無］ ${form.parking || "回答なし"}`,
-    `［エレベーターの有無］ ${form.elevator || "回答なし"}`,
-    "",
-    ...moveAddressLines,
-    "［お引き取り希望日時］",
-    `  第1希望: ${formatDateTime(form.pickupDate1)}`,
-    `  第2希望: ${formatDateTime(form.pickupDate2)}`,
-    `  第3希望: ${formatDateTime(form.pickupDate3)}`,
-    "",
-    "［ご相談内容・回収希望物］",
-    form.note || "（記載なし）",
-    "",
-    `［添付画像］ ${form.images.length}件`,
-  ].join("\n");
 };
