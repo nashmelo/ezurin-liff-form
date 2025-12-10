@@ -91,9 +91,9 @@ export default function Home() {
           JSON.stringify(e);
 
         setLiffError(
-          "LINEとの連携に失敗しました。" +
+          "LINEとの連携に失敗しましたデスよん。" +
             (message ? ` 詳細: ${message}` : "") +
-            " フォームの入力・送信は可能ですよん。"
+            " フォームの入力・送信は可能です。"
         );
       }
     };
@@ -222,75 +222,70 @@ export default function Home() {
       return;
     }
 
-    // 🔔 トークに流すまとめメッセージを生成
-    const lines: string[] = [
-      "💬 ご相談ありがとうございます",
+    // ✏️ トークに流すまとめテキストを生成
+    const summaryLines = [
+      "💬 お問い合わせありがとうございます！",
+      "",
+      "以下の内容でご相談を承りました。",
       "",
       `【お名前】${form.name}`,
       `【LINE名】${form.lineName || "（未入力）"}`,
       `【電話番号】${form.phone}`,
       "",
-      "▼回収現場住所",
+      "■ 回収現場住所",
       `〒${form.postalCode || "（未入力）"}`,
-      (
-        `${form.prefecture || ""}${form.city || ""}${form.address1 || ""} ${
-          form.building || ""
-        }`.trim() || "（未入力）"
-      ),
+      `${form.prefecture || ""}${form.city || ""}${form.address1 || ""}`,
+      `${form.building || ""}`,
       "",
       `【建物種類】${form.buildingType || "（未入力）"}`,
       `【駐車場】${form.parking || "（未入力）"}`,
       `【エレベーター】${form.elevator || "（未入力）"}`,
       "",
-      `【ご希望サービス】${form.service}`,
+      `■ ご希望サービス：${form.service}`,
     ];
 
     if (form.service === "引越し") {
-      lines.push(
+      summaryLines.push(
         "",
-        "▼引越し先住所",
+        "■ 引越し先住所",
         `〒${form.movePostalCode || "（未入力）"}`,
-        (
-          `${form.movePrefecture || ""}${form.moveCity || ""}${
-            form.moveAddress1 || ""
-          }`.trim() || "（未入力）"
-        )
+        `${form.movePrefecture || ""}${form.moveCity || ""}${
+          form.moveAddress1 || ""
+        }`
       );
     }
 
-    lines.push(
+    summaryLines.push(
       "",
-      "▼お引き取り希望日時",
+      "■ お引き取り希望日時",
       `第1希望：${form.pickupDate1 || "（未入力）"}`,
       `第2希望：${form.pickupDate2 || "（未入力）"}`,
       `第3希望：${form.pickupDate3 || "（未入力）"}`
     );
 
     if (form.note) {
-      lines.push("", "▼ご相談内容・回収希望物", form.note);
+      summaryLines.push("", "■ ご相談内容・回収希望物", form.note);
     }
 
     if (form.images.length > 0) {
-      lines.push(
+      summaryLines.push(
         "",
-        `※画像枚数：${form.images.length}枚（ファイル名：${form.images
-          .map((f) => f.name)
-          .join(" / ")}）`
+        `■ 添付画像枚数：${form.images.length}枚`
       );
     }
 
-    const summaryText = lines.join("\n");
+    const summaryText = summaryLines.join("\n");
 
     try {
       setSubmitting(true);
 
-      console.log("送信データ:", {
+      console.log("送信データ（デバッグ用）:", {
         ...form,
         images: form.images.map((f) => f.name),
       });
 
-      // 🔔 LINE トークにユーザー名義でメッセージ送信
-      if (liff.isInClient() && liff.isLoggedIn()) {
+      // 🔔 LINEトークにユーザー名義でメッセージ送信
+      if (liff.isInClient()) {
         try {
           await liff.sendMessages([
             {
@@ -302,8 +297,10 @@ export default function Home() {
           console.error("liff.sendMessages error", err);
         }
       } else {
-        console.log("LINEアプリ外からのアクセスのため sendMessages はスキップ");
+        console.log("LINEアプリ外からのアクセスのため、sendMessagesはスキップ");
       }
+
+      // （このあと /api/form や kintone 連携を追加予定）
 
       await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -383,8 +380,7 @@ export default function Home() {
                 marginBottom: 12,
               }}
             >
-              送信ありがとうございました。トーク画面のメッセージと、
-              担当者からの返信をお待ちください。
+              送信ありがとうございました。トーク画面のメッセージと、担当者からの返信をお待ちください。
             </div>
           )}
 
@@ -556,6 +552,7 @@ export default function Home() {
               </select>
             </Field>
 
+            {/* 引越し選択時のみ表示 */}
             {form.service === "引越し" && (
               <>
                 <SectionTitle label="引越し先住所" />
