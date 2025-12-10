@@ -65,53 +65,44 @@ export default function Home() {
   const [fileInputKey, setFileInputKey] = useState(0);
 
   // 🔰 LIFF 初期化（LINE名だけ自動取得）
-  useEffect(() => {
-  const initLiff = async () => {
-    try {
-      console.log("LIFF init start", LIFF_ID);
+   useEffect(() => {
+    const initLiff = async () => {
+      try {
+        await liff.init({ liffId: LIFF_ID });
 
-      await liff.init({
-        liffId: LIFF_ID,
-        withLoginOnExternalBrowser: true, // 念のため付けておく
-      });
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
 
-      // ログインしてなければログイン
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
+        const profile = await liff.getProfile();
+
+        setForm((prev) => ({
+          ...prev,
+          lineName: prev.lineName || profile.displayName,
+        }));
+      } catch (e: any) {
+        console.error("LIFF init error", e);
+
+        // 🔽 ここがポイント：エラーの中身をそのまま画面に出す
+        const message =
+          (typeof e === "string" && e) ||
+          e?.message ||
+          e?.details ||
+          JSON.stringify(e);
+
+        setLiffError(
+          "LINEとの連携に失敗しました。" +
+            (message ? ` 詳細: ${message}` : "") +
+            " フォームの入力・送信は可能です。"
+        );
       }
+    };
 
-      const profile = await liff.getProfile();
-      console.log("LIFF profile", profile);
-
-      setForm((prev) => ({
-        ...prev,
-        lineName: prev.lineName || profile.displayName,
-      }));
-      setLiffError(null);
-        } catch (e: any) {
-      console.error("LIFF init error", e);
-
-      // 🔍 ここでエラー内容をそのまま見てみる
-      const message =
-        e?.message ||
-        e?.details ||
-        e?.toString?.() ||
-        "不明なエラーが発生しました";
-
-      alert("LIFF 初期化エラー:\n" + message);
-
-      setLiffError(
-        "LINEとの連携に失敗しました（" +
-          message +
-          "）。フォームの入力・送信は可能です。"
-      );
+    if (typeof window !== "undefined") {
+      initLiff();
     }
-
-  if (typeof window !== "undefined") {
-    initLiff();
-  }
-}, []);
+  }, []);
 
   // 郵便番号 → 回収現場住所
   const lookupAddressFromPostalCode = async (zipcode: string) => {
