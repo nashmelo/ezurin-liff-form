@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import liff from "@line/liff";
 import styles from "./page.module.css";
 
-const LIFF_ID = "2008636045-8572KPnd"; // ★本番用 LIFF ID に変更
+const LIFF_ID = "2008636045-8572KPnd"; // ★本番用 LIFF ID
 
 type FormData = {
   name: string;
@@ -65,7 +65,7 @@ export default function Home() {
   const [fileInputKey, setFileInputKey] = useState(0);
 
   // 🔰 LIFF 初期化（LINE名だけ自動取得）
-   useEffect(() => {
+  useEffect(() => {
     const initLiff = async () => {
       try {
         await liff.init({ liffId: LIFF_ID });
@@ -84,7 +84,6 @@ export default function Home() {
       } catch (e: any) {
         console.error("LIFF init error", e);
 
-        // 🔽 ここがポイント：エラーの中身をそのまま画面に出す
         const message =
           (typeof e === "string" && e) ||
           e?.message ||
@@ -214,7 +213,7 @@ export default function Home() {
     }));
   };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -223,7 +222,7 @@ export default function Home() {
       return;
     }
 
-    // ★ まとめメッセージを作成（状態リセット前に）
+    // 🔔 トークに流すまとめメッセージを生成
     const lines: string[] = [
       "💬 ご相談ありがとうございます",
       "",
@@ -285,99 +284,13 @@ export default function Home() {
     try {
       setSubmitting(true);
 
-      // （ここに将来 /api/form などへの送信を入れる）
-
-      // ★ LIFF 内＆ログイン済みなら「お客様からのメッセージ」として送信
-      try {
-        if (liff.isInClient() && liff.isLoggedIn()) {
-          await liff.sendMessages([
-            {
-              type: "text",
-              text: summaryText,
-            },
-          ]);
-        }
-      } catch (sendErr) {
-        console.error("sendMessages error", sendErr);
-        // 失敗してもフォーム自体は通す
-      }
-
-      setSubmitted(true);
-      setForm(initialFormData);
-      setFileInputKey((k) => k + 1);
-      // 必要なら LIFF を閉じる
-      // if (liff.isInClient()) liff.closeWindow();
-    } catch (e) {
-      console.error(e);
-      setError(
-        "送信中にエラーが発生しました。時間をおいて再度お試しください。"
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-      // ✏️ トークに流すまとめテキストを生成
-      const summaryLines = [
-        "💬 お問い合わせありがとうございます！",
-        "",
-        "以下の内容でご相談を承りました。",
-        "",
-        `【お名前】${form.name}`,
-        `【LINE名】${form.lineName || "（未入力）"}`,
-        `【電話番号】${form.phone}`,
-        "",
-        "■ 回収現場住所",
-        `〒${form.postalCode || "（未入力）"}`,
-        `${form.prefecture || ""}${form.city || ""}${form.address1 || ""}`,
-        `${form.building || ""}`,
-        "",
-        `【建物種類】${form.buildingType || "（未入力）"}`,
-        `【駐車場】${form.parking || "（未入力）"}`,
-        `【エレベーター】${form.elevator || "（未入力）"}`,
-        "",
-        `■ ご希望サービス：${form.service}`,
-      ];
-
-      if (form.service === "引越し") {
-        summaryLines.push(
-          "",
-          "■ 引越し先住所",
-          `〒${form.movePostalCode || "（未入力）"}`,
-          `${form.movePrefecture || ""}${form.moveCity || ""}${
-            form.moveAddress1 || ""
-          }`
-        );
-      }
-
-      summaryLines.push(
-        "",
-        "■ お引き取り希望日時",
-        `第1希望：${form.pickupDate1 || "（未入力）"}`,
-        `第2希望：${form.pickupDate2 || "（未入力）"}`,
-        `第3希望：${form.pickupDate3 || "（未入力）"}`
-      );
-
-      if (form.note) {
-        summaryLines.push("", "■ ご相談内容・回収希望物", form.note);
-      }
-
-      if (form.images.length > 0) {
-        summaryLines.push(
-          "",
-          `■ 添付画像枚数：${form.images.length}枚`
-        );
-      }
-
-      const summaryText = summaryLines.join("\n");
-
-      console.log("送信データ（デバッグ用）:", {
+      console.log("送信データ:", {
         ...form,
         images: form.images.map((f) => f.name),
       });
 
-      // 🔔 LINEトークにユーザー名義でメッセージ送信
-      if (liff.isInClient()) {
+      // 🔔 LINE トークにユーザー名義でメッセージ送信
+      if (liff.isInClient() && liff.isLoggedIn()) {
         try {
           await liff.sendMessages([
             {
@@ -389,10 +302,8 @@ export default function Home() {
           console.error("liff.sendMessages error", err);
         }
       } else {
-        console.log("LINEアプリ外からのアクセスのため、sendMessagesはスキップ");
+        console.log("LINEアプリ外からのアクセスのため sendMessages はスキップ");
       }
-
-      // （このあと /api/form や kintone 連携を追加予定）
 
       await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -472,7 +383,8 @@ export default function Home() {
                 marginBottom: 12,
               }}
             >
-              送信ありがとうございました。トーク画面のメッセージと、担当者からの返信をお待ちください。
+              送信ありがとうございました。トーク画面のメッセージと、
+              担当者からの返信をお待ちください。
             </div>
           )}
 
@@ -745,6 +657,7 @@ export default function Home() {
                 onChange={handleChange}
                 rows={4}
                 placeholder="間取り（例：2DK）やおおよその荷物量、希望日程などをご記入ください。"
+                style={{ ...inputStyle, resize: "vertical" }}
               />
             </Field>
 
