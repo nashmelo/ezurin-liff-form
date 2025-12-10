@@ -64,11 +64,29 @@ export default function Home() {
   const [movePostalStatus, setMovePostalStatus] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
 
+  // ★ デバッグ用：今どのURL＆LIFF状態で動いているか
+  const [debugInfo, setDebugInfo] = useState<string>("");
+
   // 🔰 LIFF 初期化（LINE名だけ自動取得）
   useEffect(() => {
     const initLiff = async () => {
       try {
         await liff.init({ liffId: LIFF_ID });
+
+        // ★ ここで環境情報を記録
+        if (typeof window !== "undefined") {
+          const url = window.location.href;
+          const inClient = liff.isInClient();
+          const loggedIn = liff.isLoggedIn();
+          setDebugInfo(
+            [
+              `LIFF_ID: ${LIFF_ID}`,
+              `URL: ${url}`,
+              `isInClient: ${inClient}`,
+              `isLoggedIn: ${loggedIn}`,
+            ].join("\n")
+          );
+        }
 
         if (!liff.isLoggedIn()) {
           liff.login();
@@ -95,6 +113,21 @@ export default function Home() {
             (message ? ` 詳細: ${message}` : "") +
             " フォームの入力・送信は可能です。"
         );
+
+        // ★ エラー時もURLだけは出しておく
+        if (typeof window !== "undefined") {
+          const url = window.location.href;
+          setDebugInfo(
+            [
+              "LIFF init ERROR",
+              `LIFF_ID: ${LIFF_ID}`,
+              `URL: ${url}`,
+              message ? `raw: ${message}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n")
+          );
+        }
       }
     };
 
@@ -268,10 +301,7 @@ export default function Home() {
     }
 
     if (form.images.length > 0) {
-      summaryLines.push(
-        "",
-        `■ 添付画像枚数：${form.images.length}枚`
-      );
+      summaryLines.push("", `■ 添付画像枚数：${form.images.length}枚`);
     }
 
     const summaryText = summaryLines.join("\n");
@@ -338,6 +368,24 @@ export default function Home() {
             <br />
             担当者よりLINEまたはお電話でご連絡いたします。
           </p>
+
+          {/* ★ここで debugInfo を表示 */}
+          {debugInfo && (
+            <pre
+              style={{
+                fontSize: 10,
+                background: "#f5f5f5",
+                padding: 8,
+                borderRadius: 6,
+                marginBottom: 10,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+                color: "#666",
+              }}
+            >
+              {debugInfo}
+            </pre>
+          )}
 
           {liffError && (
             <div
