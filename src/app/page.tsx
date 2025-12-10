@@ -551,7 +551,7 @@ export default function Home() {
                 value={form.pickupDate1}
                 onChange={handleChange}
                 type="datetime-local"
-                style={inputStyle}
+                style={dateTimeInputStyle}
               />
             </Field>
 
@@ -561,7 +561,7 @@ export default function Home() {
                 value={form.pickupDate2}
                 onChange={handleChange}
                 type="datetime-local"
-                style={inputStyle}
+                style={dateTimeInputStyle}
               />
             </Field>
 
@@ -571,7 +571,7 @@ export default function Home() {
                 value={form.pickupDate3}
                 onChange={handleChange}
                 type="datetime-local"
-                style={inputStyle}
+                style={dateTimeInputStyle}
               />
             </Field>
 
@@ -680,4 +680,9 @@ const SectionTitle: React.FC<{ label: string }> = ({ label }) => (
   border: "1px solid #ddd",
   fontSize: 13,
   boxSizing: "border-box",
+};
+const dateTimeInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  width: "96%",
+  margin: "0 auto",
 };
