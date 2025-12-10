@@ -99,14 +99,15 @@ export default function Home() {
           ...prev,
           lineName: prev.lineName || profile.displayName,
         }));
-      } catch (e: any) {
-        console.error("LIFF init error", e);
+      catch (e: unknown) {
+      console.error("LIFF init error", e);
 
-        const message =
-          (typeof e === "string" && e) ||
-          e?.message ||
-          e?.details ||
-          JSON.stringify(e);
+      let message = "";
+      if (typeof e === "string") {
+       message = e;
+    } else if (e && typeof e === "object" && "message" in e) {
+      message = String((e as { message: unknown }).message);
+    }
 
         setLiffError(
           "LINEとの連携に失敗しましたデスよん。" +
