@@ -89,10 +89,10 @@ export default function Home() {
         lineName: prev.lineName || profile.displayName,
       }));
       setLiffError(null);
-    } catch (e: any) {
+        } catch (e: any) {
       console.error("LIFF init error", e);
 
-      // ★ ここでエラー内容を直接表示させる
+      // 🔍 ここでエラー内容をそのまま見てみる
       const message =
         e?.message ||
         e?.details ||
@@ -102,10 +102,11 @@ export default function Home() {
       alert("LIFF 初期化エラー:\n" + message);
 
       setLiffError(
-        "LINEとの連携に失敗しました（" + message + "）。フォームの入力・送信は可能です。"
+        "LINEとの連携に失敗しました（" +
+          message +
+          "）。フォームの入力・送信は可能です。"
       );
     }
-  };
 
   if (typeof window !== "undefined") {
     initLiff();
