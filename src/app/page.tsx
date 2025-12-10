@@ -221,13 +221,31 @@ export default function Home() {
     try {
       setSubmitting(true);
 
-      // ★ このあとで
-      //   - /api/form にPOSTしてLINEに通知
-      //   - あるいはkintoneに登録
-      // などを実装していく
-      console.log("送信データ:", {
+      // 送信時点の値をコピー（リセット前に確保）
+      const currentForm: FormData = {
         ...form,
-        images: form.images.map((f) => f.name),
+        images: [...form.images],
+      };
+
+      // 🎫 トーク画面に「まとめメッセージ」をユーザーの発言として送る
+      if (liff.isInClient()) {
+        try {
+          await liff.sendMessages([
+            {
+              type: "text",
+              text: buildSummaryMessage(currentForm),
+            },
+          ]);
+        } catch (err) {
+          console.error("liff.sendMessages error", err);
+          // 失敗してもフォーム自体は通す
+        }
+      }
+
+      // （必要ならここで /api/form に POST したり kintone に登録したり）
+      console.log("送信データ:", {
+        ...currentForm,
+        images: currentForm.images.map((f) => f.name),
       });
 
       await new Promise((resolve) => setTimeout(resolve, 600));
@@ -668,12 +686,12 @@ const SectionTitle: React.FC<{ label: string }> = ({ label }) => (
       borderLeft: "3px solid #00c300",
       paddingLeft: 8,
     }}
-    >
+  >
     {label}
   </h2>
 );
 
-  const inputStyle: React.CSSProperties = {
+const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
   borderRadius: 6,
@@ -681,8 +699,59 @@ const SectionTitle: React.FC<{ label: string }> = ({ label }) => (
   fontSize: 13,
   boxSizing: "border-box",
 };
+
 const dateTimeInputStyle: React.CSSProperties = {
   ...inputStyle,
   width: "96%",
   margin: "0 auto",
+};
+
+// 日時文字列を「2025/12/18 11:47」みたいな表示に整える
+const formatDateTime = (value?: string) => {
+  if (!value) return "回答なし";
+  return value.replace("T", " ");
+};
+
+// LINE に送る要約メッセージを作る
+const buildSummaryMessage = (form: FormData) => {
+  const moveAddressLines =
+    form.service === "引越し"
+      ? [
+          "［引越し先住所］",
+          `  〒${form.movePostalCode || ""}`,
+          `  ${form.movePrefecture || ""} ${form.moveCity || ""} ${
+            form.moveAddress1 || ""
+          }`,
+          "",
+        ]
+      : [];
+
+  return [
+    "💬 新しいメッセージが届きました",
+    "",
+    `🚩 【${form.service || "サービス未選択"}】ご相談フォーム`,
+    `［お名前］ ${form.name || "回答なし"}`,
+    `［LINE名］ ${form.lineName || "回答なし"}`,
+    `［電話番号］ ${form.phone || "回答なし"}`,
+    "",
+    "［回収現場住所］",
+    `  〒${form.postalCode || ""}`,
+    `  ${form.prefecture || ""} ${form.city || ""} ${form.address1 || ""}`,
+    `  ${form.building || ""}`,
+    "",
+    `［建物種類］ ${form.buildingType || "回答なし"}`,
+    `［駐車場の有無］ ${form.parking || "回答なし"}`,
+    `［エレベーターの有無］ ${form.elevator || "回答なし"}`,
+    "",
+    ...moveAddressLines,
+    "［お引き取り希望日時］",
+    `  第1希望: ${formatDateTime(form.pickupDate1)}`,
+    `  第2希望: ${formatDateTime(form.pickupDate2)}`,
+    `  第3希望: ${formatDateTime(form.pickupDate3)}`,
+    "",
+    "［ご相談内容・回収希望物］",
+    form.note || "（記載なし）",
+    "",
+    `［添付画像］ ${form.images.length}件`,
+  ].join("\n");
 };
