@@ -66,33 +66,51 @@ export default function Home() {
 
   // 🔰 LIFF 初期化（LINE名だけ自動取得）
   useEffect(() => {
-    const initLiff = async () => {
-      try {
-        await liff.init({ liffId: LIFF_ID });
+  const initLiff = async () => {
+    try {
+      console.log("LIFF init start", LIFF_ID);
 
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
+      await liff.init({
+        liffId: LIFF_ID,
+        withLoginOnExternalBrowser: true, // 念のため付けておく
+      });
 
-        const profile = await liff.getProfile();
-
-        setForm((prev) => ({
-          ...prev,
-          lineName: prev.lineName || profile.displayName,
-        }));
-      } catch (e) {
-        console.error("LIFF init error", e);
-        setLiffError(
-          "LINEとの連携に失敗しましたが、フォームの入力・送信は可能です。"
-        );
+      // ログインしてなければログイン
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
       }
-    };
 
-    if (typeof window !== "undefined") {
-      initLiff();
+      const profile = await liff.getProfile();
+      console.log("LIFF profile", profile);
+
+      setForm((prev) => ({
+        ...prev,
+        lineName: prev.lineName || profile.displayName,
+      }));
+      setLiffError(null);
+    } catch (e: any) {
+      console.error("LIFF init error", e);
+
+      // ★ ここでエラー内容を直接表示させる
+      const message =
+        e?.message ||
+        e?.details ||
+        e?.toString?.() ||
+        "不明なエラーが発生しました";
+
+      alert("LIFF 初期化エラー:\n" + message);
+
+      setLiffError(
+        "LINEとの連携に失敗しました（" + message + "）。フォームの入力・送信は可能です。"
+      );
     }
-  }, []);
+  };
+
+  if (typeof window !== "undefined") {
+    initLiff();
+  }
+}, []);
 
   // 郵便番号 → 回収現場住所
   const lookupAddressFromPostalCode = async (zipcode: string) => {
