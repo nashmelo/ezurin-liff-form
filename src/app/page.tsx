@@ -99,15 +99,15 @@ export default function Home() {
           ...prev,
           lineName: prev.lineName || profile.displayName,
         }));
-      catch (e: unknown) {
-      console.error("LIFF init error", e);
+      } catch (e: unknown) {
+        console.error("LIFF init error", e);
 
-      let message = "";
-      if (typeof e === "string") {
-       message = e;
-    } else if (e && typeof e === "object" && "message" in e) {
-      message = String((e as { message: unknown }).message);
-    }
+        let message = "";
+        if (typeof e === "string") {
+          message = e;
+        } else if (e && typeof e === "object" && "message" in e) {
+          message = String((e as { message: unknown }).message);
+        }
 
         setLiffError(
           "LINEとの連携に失敗しましたデスよん。" +
@@ -257,7 +257,7 @@ export default function Home() {
     }
 
     // ✏️ トークに流すまとめテキストを生成
-    const summaryLines = [
+    const summaryLines: string[] = [
       "💬 お問い合わせありがとうございます！",
       "",
       "以下の内容でご相談を承りました。",
@@ -302,7 +302,12 @@ export default function Home() {
     }
 
     if (form.images.length > 0) {
-      summaryLines.push("", `■ 添付画像枚数：${form.images.length}枚`);
+      summaryLines.push(
+        "",
+        `■ 添付画像枚数：${form.images.length}枚（ファイル名：${form.images
+          .map((f) => f.name)
+          .join(" / ")}）`
+      );
     }
 
     const summaryText = summaryLines.join("\n");
@@ -316,7 +321,7 @@ export default function Home() {
       });
 
       // 🔔 LINEトークにユーザー名義でメッセージ送信
-      if (liff.isInClient()) {
+      if (liff.isInClient() && liff.isLoggedIn()) {
         try {
           await liff.sendMessages([
             {
@@ -328,12 +333,10 @@ export default function Home() {
           console.error("liff.sendMessages error", err);
         }
       } else {
-        console.log("LINEアプリ外からのアクセスのため、sendMessagesはスキップ");
+        console.log(
+          "LINEアプリ外からのアクセス、または未ログインのため sendMessages はスキップ"
+        );
       }
-
-      // （このあと /api/form や kintone 連携を追加予定）
-
-      await new Promise((resolve) => setTimeout(resolve, 400));
 
       setSubmitted(true);
       setForm(initialFormData);
@@ -798,7 +801,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ddd",
+  border: "1px solid "#ddd",
   fontSize: 13,
   boxSizing: "border-box",
 };
