@@ -93,7 +93,7 @@ export default function Home() {
         setLiffError(
           "LINEとの連携に失敗しました。" +
             (message ? ` 詳細: ${message}` : "") +
-            " フォームの入力・送信は可能です。"
+            " フォームの入力・送信は可能ですよん。"
         );
       }
     };
