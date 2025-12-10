@@ -21,6 +21,15 @@ type FormData = {
   service: string;
   note: string;
   images: File[]; // 添付画像
+  // 引越し先住所
+  movePostalCode: string;
+  movePrefecture: string;
+  moveCity: string;
+  moveAddress1: string;
+  // 希望引き取り日時（第1〜第3）
+  pickupDate1: string;
+  pickupDate2: string;
+  pickupDate3: string;
 };
 
 const initialFormData: FormData = {
@@ -38,6 +47,13 @@ const initialFormData: FormData = {
   service: "",
   note: "",
   images: [],
+  movePostalCode: "",
+  movePrefecture: "",
+  moveCity: "",
+  moveAddress1: "",
+  pickupDate1: "",
+  pickupDate2: "",
+  pickupDate3: "",
 };
 
 export default function Home() {
@@ -47,6 +63,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [liffError, setLiffError] = useState<string | null>(null);
   const [postalStatus, setPostalStatus] = useState<string | null>(null);
+  const [movePostalStatus, setMovePostalStatus] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0); // 添付画像リセット用
 
   // 🔰 LIFF 初期化して LINE プロフィールから名前を取得（lineName だけ）
@@ -80,7 +97,7 @@ export default function Home() {
     }
   }, []);
 
-  // 郵便番号 → 住所自動補完
+  // 郵便番号 → 回収現場住所自動補完
   const lookupAddressFromPostalCode = async (zipcode: string) => {
     if (!zipcode || zipcode.length !== 7) return;
     setPostalStatus("住所を検索しています…");
@@ -113,6 +130,41 @@ export default function Home() {
     }
   };
 
+  // 郵便番号 → 引越し先住所自動補完
+  const lookupMoveAddressFromPostalCode = async (zipcode: string) => {
+    if (!zipcode || zipcode.length !== 7) return;
+    setMovePostalStatus("住所を検索しています…");
+
+    try {
+      const res = await fetch(
+        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${encodeURIComponent(
+          zipcode
+        )}`
+      );
+      const data = await res.json();
+
+      if (data.status === 200 && data.results && data.results[0]) {
+        const r = data.results[0];
+        const prefecture = r.address1 || "";
+        const city = `${r.address2 || ""}${r.address3 || ""}`.trim();
+
+        setForm((prev) => ({
+          ...prev,
+          movePrefecture: prev.movePrefecture || prefecture,
+          moveCity: prev.moveCity || city,
+        }));
+        setMovePostalStatus(null);
+      } else {
+        setMovePostalStatus(
+          "住所が見つかりませんでした。手入力してください。"
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      setMovePostalStatus("住所検索に失敗しました。手入力してください。");
+    }
+  };
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -121,7 +173,7 @@ export default function Home() {
     const { name, value } = e.target;
 
     if (name === "postalCode") {
-      // 数字だけにして7桁なら検索
+      // 回収現場：数字だけにして7桁なら検索
       const digits = value.replace(/\D/g, "");
       setForm((prev) => ({ ...prev, postalCode: digits }));
 
@@ -133,11 +185,24 @@ export default function Home() {
       return;
     }
 
+    if (name === "movePostalCode") {
+      // 引越し先：数字だけにして7桁なら検索
+      const digits = value.replace(/\D/g, "");
+      setForm((prev) => ({ ...prev, movePostalCode: digits }));
+
+      if (digits.length === 7) {
+        lookupMoveAddressFromPostalCode(digits);
+      } else {
+        setMovePostalStatus(null);
+      }
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 3); // 最大3枚
+    const files = Array.from(e.target.files || []); // リミット無し（選択した分全部）
     setForm((prev) => ({
       ...prev,
       images: files,
@@ -410,9 +475,104 @@ export default function Home() {
                 <option value="不用品回収">不用品回収</option>
                 <option value="遺品整理・生前整理">遺品整理・生前整理</option>
                 <option value="ゴミ屋敷片付け">ゴミ屋敷片付け</option>
-                <option value="引越しに伴う回収">引越しに伴う回収</option>
+                <option value="引越し">引越し</option>
                 <option value="その他">その他</option>
               </select>
+            </Field>
+
+            {/* 引越し選択時のみ表示 */}
+            {form.service === "引越し" && (
+              <>
+                <SectionTitle label="引越し先住所" />
+
+                <Field label="引越し先 郵便番号（7桁）">
+                  <input
+                    name="movePostalCode"
+                    value={form.movePostalCode}
+                    onChange={handleChange}
+                    type="text"
+                    placeholder="1234567"
+                    style={inputStyle}
+                  />
+                  {movePostalStatus && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 11,
+                        color: "#888",
+                      }}
+                    >
+                      {movePostalStatus}
+                    </div>
+                  )}
+                </Field>
+
+                <Field label="引越し先 都道府県">
+                  <input
+                    name="movePrefecture"
+                    value={form.movePrefecture}
+                    onChange={handleChange}
+                    type="text"
+                    placeholder="東京都"
+                    style={inputStyle}
+                  />
+                </Field>
+
+                <Field label="引越し先 市区町村">
+                  <input
+                    name="moveCity"
+                    value={form.moveCity}
+                    onChange={handleChange}
+                    type="text"
+                    placeholder="新宿区 西新宿"
+                    style={inputStyle}
+                  />
+                </Field>
+
+                <Field label="引越し先 番地・建物名">
+                  <input
+                    name="moveAddress1"
+                    value={form.moveAddress1}
+                    onChange={handleChange}
+                    type="text"
+                    placeholder="1-2-3 ○○マンション101"
+                    style={inputStyle}
+                  />
+                </Field>
+              </>
+            )}
+
+            {/* 希望引き取り日時 */}
+            <SectionTitle label="お引き取り希望日時" />
+
+            <Field label="第1希望（任意）">
+              <input
+                name="pickupDate1"
+                value={form.pickupDate1}
+                onChange={handleChange}
+                type="datetime-local"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="第2希望（任意）">
+              <input
+                name="pickupDate2"
+                value={form.pickupDate2}
+                onChange={handleChange}
+                type="datetime-local"
+                style={inputStyle}
+              />
+            </Field>
+
+            <Field label="第3希望（任意）">
+              <input
+                name="pickupDate3"
+                value={form.pickupDate3}
+                onChange={handleChange}
+                type="datetime-local"
+                style={inputStyle}
+              />
             </Field>
 
             <Field label="ご相談内容・回収希望物（任意）">
@@ -426,7 +586,7 @@ export default function Home() {
               />
             </Field>
 
-            <Field label="添付画像（任意・最大3枚）">
+            <Field label="添付画像（任意・複数可）">
               <input
                 key={fileInputKey}
                 type="file"
@@ -508,12 +668,12 @@ const SectionTitle: React.FC<{ label: string }> = ({ label }) => (
       borderLeft: "3px solid #00c300",
       paddingLeft: 8,
     }}
-  >
+    >
     {label}
   </h2>
 );
 
-const inputStyle: React.CSSProperties = {
+  const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
   borderRadius: 6,
