@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import liff from "@line/liff";
 import styles from "./page.module.css";
 
-const LIFF_ID = "2008636045-8572KPnd"; // ★本番用 LIFF ID
+const LIFF_ID = "2008636045-8572KPnd"; // ★本番用 LIFF ID（固定）
 
 type FormData = {
   name: string;
@@ -67,7 +67,7 @@ export default function Home() {
   // ★ デバッグ用：今どのURL＆LIFF状態で動いているか
   const [debugInfo, setDebugInfo] = useState<string>("");
 
-  // 🔰 LIFF 初期化（LINE名だけ自動取得）
+  // 🔰 LIFF 初期化（LINE名だけ自動取得）※安全版
   useEffect(() => {
     const initLiff = async () => {
       try {
@@ -88,8 +88,17 @@ export default function Home() {
           );
         }
 
+        // ★ 未ログイン時：LINEアプリ内だけ login する（無限ループ防止）
         if (!liff.isLoggedIn()) {
-          liff.login();
+          if (liff.isInClient()) {
+            // redirectUri を明示しておくと挙動が安定しやすい
+            liff.login({ redirectUri: window.location.href });
+          } else {
+            // ブラウザアクセス時は login を呼ばず、入力だけ可能にする
+            setLiffError(
+              "ブラウザから開いています。LINEアプリ内で開くと、LINE名の自動取得やトーク送信が可能になります。"
+            );
+          }
           return;
         }
 
