@@ -244,7 +244,6 @@ export default function Home() {
       `第2希望：${form.pickupDate2 || "なし"}`,
       `第3希望：${form.pickupDate3 || "なし"}`,
       "",
-      `■ 添付画像：${form.images.length}枚`,
       "———",
       "",
       "※ このトークでそのままやり取りできます。",
