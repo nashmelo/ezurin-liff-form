@@ -1,47 +1,75 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import liff from "@line/liff";
 import styles from "./page.module.css";
 
 const LIFF_ID = "2008636045-8572KPnd";
 
+/* =========================
+   型定義
+========================= */
 type FormData = {
   name: string;
   phone: string;
+
   postalCode: string;
   prefecture: string;
   city: string;
   address1: string;
-  building: string;
+
   buildingType: string;
   parking: "あり" | "なし" | "";
   elevator: "あり" | "なし" | "";
-  service: string;
-  note: string;
+
+  service: "不用品回収" | "部屋を丸ごと片付け" | "引越し" | "";
+
+  movePostalCode: string;
+  movePrefecture: string;
+  moveCity: string;
+  moveAddress1: string;
+
+  items: string;
   images: File[];
+
   pickupDate1: string;
   pickupDate2: string;
   pickupDate3: string;
+
+  contactMethod: "LINE" | "電話";
 };
 
+/* =========================
+   初期値
+========================= */
 const initialFormData: FormData = {
   name: "",
   phone: "",
+
   postalCode: "",
   prefecture: "",
   city: "",
   address1: "",
-  building: "",
+
   buildingType: "",
   parking: "",
   elevator: "",
+
   service: "",
-  note: "",
+
+  movePostalCode: "",
+  movePrefecture: "",
+  moveCity: "",
+  moveAddress1: "",
+
+  items: "",
   images: [],
+
   pickupDate1: "",
   pickupDate2: "",
   pickupDate3: "",
+
+  contactMethod: "LINE",
 };
 
 export default function Home() {
@@ -49,19 +77,12 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [liffReady, setLiffReady] = useState(false);
 
   /* =========================
-     LIFF 初期化（最小構成）
+     LIFF 初期化
   ========================= */
   useEffect(() => {
-    liff
-      .init({ liffId: LIFF_ID })
-      .then(() => setLiffReady(true))
-      .catch((e) => {
-        console.error("LIFF init error", e);
-        setLiffReady(false);
-      });
+    liff.init({ liffId: LIFF_ID }).catch(console.error);
   }, []);
 
   /* =========================
@@ -90,8 +111,16 @@ export default function Home() {
     e.preventDefault();
     setError(null);
 
-    if (!form.name || !form.phone || !form.service) {
-      setError("お名前・電話番号・ご希望サービスは必須です。");
+    if (
+      !form.name ||
+      !form.phone ||
+      !form.service ||
+      !form.pickupDate1 ||
+      !form.buildingType ||
+      !form.parking ||
+      !form.elevator
+    ) {
+      setError("必須項目が未入力です。");
       return;
     }
 
@@ -99,27 +128,44 @@ export default function Home() {
       "📩 お問い合わせを受け付けました",
       "",
       "以下の内容で承りました。",
-      "内容を確認のうえ、担当者よりご連絡いたします。",
       "",
       "———",
       `【お名前】${form.name}`,
       `【電話番号】${form.phone}`,
-      `【ご希望サービス】${form.service}`,
+      `【やり取り方法】${form.contactMethod}`,
+      "",
+      "■ ご希望サービス",
+      form.service,
       "",
       "■ 回収現場住所",
       `〒${form.postalCode || "未入力"}`,
       `${form.prefecture}${form.city}${form.address1}`,
-      `${form.building}`,
       "",
-      "■ ご希望日時",
-      `第1希望：${form.pickupDate1 || "未入力"}`,
-      `第2希望：${form.pickupDate2 || "未入力"}`,
-      `第3希望：${form.pickupDate3 || "未入力"}`,
+      `建物種類：${form.buildingType}`,
+      `駐車場：${form.parking}`,
+      `エレベーター：${form.elevator}`,
       "",
-      form.note ? `■ ご相談内容\n${form.note}` : "",
+      form.service === "引越し"
+        ? [
+            "■ 引越し先住所",
+            `〒${form.movePostalCode || "未入力"}`,
+            `${form.movePrefecture}${form.moveCity}${form.moveAddress1}`,
+            "",
+          ].join("\n")
+        : "",
+      "■ 回収・引越しする物",
+      form.items || "未入力",
+      "",
+      "■ お引き取り希望日時",
+      `第1希望：${form.pickupDate1}`,
+      `第2希望：${form.pickupDate2 || "なし"}`,
+      `第3希望：${form.pickupDate3 || "なし"}`,
+      "",
+      `■ 添付画像：${form.images.length}枚`,
+      "",
+      "内容を確認のうえ、担当者よりご連絡いたします。",
+      "このトークでそのままやり取りできます。",
       "———",
-      "",
-      "※ このトークでそのままやり取りできます。",
     ]
       .filter(Boolean)
       .join("\n");
@@ -127,7 +173,7 @@ export default function Home() {
     try {
       setSubmitting(true);
 
-      if (liffReady && liff.isInClient()) {
+      if (liff.isInClient()) {
         await liff.sendMessages([
           {
             type: "text",
@@ -138,9 +184,9 @@ export default function Home() {
 
       setSubmitted(true);
       setForm(initialFormData);
-    } catch (e) {
-      console.error(e);
-      setError("送信中にエラーが発生しました。");
+    } catch (err) {
+      console.error(err);
+      setError("送信に失敗しました。");
     } finally {
       setSubmitting(false);
     }
@@ -152,128 +198,79 @@ export default function Home() {
   return (
     <main className={styles.main}>
       <div className={styles.center}>
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 480,
-            background: "white",
-            borderRadius: 12,
-            padding: 20,
-            boxShadow: "0 8px 18px rgba(0,0,0,0.06)",
-          }}
-        >
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-            不用品回収・片付けご相談フォーム
-          </h1>
+        <div className={styles.card}>
+          <h1>不用品回収・片付け ご相談フォーム</h1>
 
-          <p style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
-            必要事項をご入力のうえ送信してください。
-            <br />
-            担当者よりLINEまたはお電話でご連絡いたします。
-          </p>
-
-          {error && (
-            <div
-              style={{
-                background: "#ffe5e5",
-                color: "#b00020",
-                padding: "8px 10px",
-                borderRadius: 6,
-                fontSize: 12,
-                marginBottom: 12,
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {submitted && (
-            <div
-              style={{
-                background: "#e6f7ff",
-                color: "#0050b3",
-                padding: "8px 10px",
-                borderRadius: 6,
-                fontSize: 12,
-                marginBottom: 12,
-              }}
-            >
-              送信ありがとうございました。トーク画面をご確認ください。
-            </div>
-          )}
+          {error && <p style={{ color: "red" }}>{error}</p>}
+          {submitted && <p>送信しました。LINEをご確認ください。</p>}
 
           <form onSubmit={handleSubmit}>
-            <Field label="お名前" required>
-              <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                style={inputStyle}
-              />
-            </Field>
+            <input name="name" placeholder="お名前" value={form.name} onChange={handleChange} />
+            <input name="phone" placeholder="電話番号（ハイフンなし）" value={form.phone} onChange={handleChange} />
 
-            <Field label="電話番号" required>
-              <input
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                style={inputStyle}
-              />
-            </Field>
+            <input name="postalCode" placeholder="郵便番号" value={form.postalCode} onChange={handleChange} />
+            <input name="prefecture" placeholder="都道府県" value={form.prefecture} onChange={handleChange} />
+            <input name="city" placeholder="市区町村" value={form.city} onChange={handleChange} />
+            <input name="address1" placeholder="番地・建物名" value={form.address1} onChange={handleChange} />
 
-            <Field label="ご希望サービス" required>
-              <select
-                name="service"
-                value={form.service}
-                onChange={handleChange}
-                style={inputStyle}
-              >
-                <option value="">選択してください</option>
-                <option value="不用品回収">不用品回収</option>
-                <option value="遺品整理・生前整理">
-                  遺品整理・生前整理
-                </option>
-                <option value="ゴミ屋敷片付け">ゴミ屋敷片付け</option>
-                <option value="引越し">引越し</option>
-              </select>
-            </Field>
+            <select name="buildingType" value={form.buildingType} onChange={handleChange}>
+              <option value="">建物種類</option>
+              <option value="戸建て">戸建て</option>
+              <option value="マンション・アパート">マンション・アパート</option>
+              <option value="倉庫">倉庫</option>
+              <option value="オフィス">オフィス</option>
+              <option value="その他">その他</option>
+            </select>
 
-            <Field label="ご相談内容（任意）">
-              <textarea
-                name="note"
-                rows={4}
-                value={form.note}
-                onChange={handleChange}
-                style={{ ...inputStyle, resize: "vertical" }}
-              />
-            </Field>
+            <select name="parking" value={form.parking} onChange={handleChange}>
+              <option value="">駐車場の有無</option>
+              <option value="あり">あり</option>
+              <option value="なし">なし</option>
+            </select>
 
-            <Field label="画像添付（任意）">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileChange}
-              />
-            </Field>
+            <select name="elevator" value={form.elevator} onChange={handleChange}>
+              <option value="">エレベーターの有無</option>
+              <option value="あり">あり</option>
+              <option value="なし">なし</option>
+            </select>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: "100%",
-                marginTop: 12,
-                padding: "10px 16px",
-                borderRadius: 999,
-                border: "none",
-                background: submitting ? "#999" : "#00c300",
-                color: "white",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: submitting ? "default" : "pointer",
-              }}
-            >
-              {submitting ? "送信中..." : "この内容で送信する"}
+            <select name="service" value={form.service} onChange={handleChange}>
+              <option value="">ご希望のサービス</option>
+              <option value="不用品回収">不用品回収</option>
+              <option value="部屋を丸ごと片付け">部屋を丸ごと片付け</option>
+              <option value="引越し">引越し</option>
+            </select>
+
+            {form.service === "引越し" && (
+              <>
+                <h3>引越し先住所</h3>
+                <input name="movePostalCode" placeholder="郵便番号" value={form.movePostalCode} onChange={handleChange} />
+                <input name="movePrefecture" placeholder="都道府県" value={form.movePrefecture} onChange={handleChange} />
+                <input name="moveCity" placeholder="市区町村" value={form.moveCity} onChange={handleChange} />
+                <input name="moveAddress1" placeholder="番地・建物名" value={form.moveAddress1} onChange={handleChange} />
+              </>
+            )}
+
+            <textarea
+              name="items"
+              placeholder="回収・引越しする物の種類・個数"
+              value={form.items}
+              onChange={handleChange}
+            />
+
+            <input type="file" multiple accept="image/*" onChange={handleFileChange} />
+
+            <input type="datetime-local" name="pickupDate1" value={form.pickupDate1} onChange={handleChange} />
+            <input type="datetime-local" name="pickupDate2" value={form.pickupDate2} onChange={handleChange} />
+            <input type="datetime-local" name="pickupDate3" value={form.pickupDate3} onChange={handleChange} />
+
+            <select name="contactMethod" value={form.contactMethod} onChange={handleChange}>
+              <option value="LINE">LINEでやり取りしたい</option>
+              <option value="電話">電話でやり取りしたい</option>
+            </select>
+
+            <button type="submit" disabled={submitting}>
+              {submitting ? "送信中…" : "この内容で送信する"}
             </button>
           </form>
         </div>
@@ -281,38 +278,3 @@ export default function Home() {
     </main>
   );
 }
-
-/* =========================
-   小コンポーネント
-========================= */
-type FieldProps = {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-};
-
-const Field: React.FC<FieldProps> = ({ label, required, children }) => (
-  <div style={{ marginBottom: 10 }}>
-    <label
-      style={{
-        display: "block",
-        fontSize: 12,
-        fontWeight: 600,
-        marginBottom: 4,
-      }}
-    >
-      {label}
-      {required && <span style={{ color: "#d00", marginLeft: 4 }}>＊</span>}
-    </label>
-    {children}
-  </div>
-);
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid #ddd",
-  fontSize: 13,
-  boxSizing: "border-box",
-};
