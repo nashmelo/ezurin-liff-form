@@ -72,9 +72,66 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [postalStatus, setPostalStatus] = useState<string | null>(null);
+  const [movePostalStatus, setMovePostalStatus] = useState<string | null>(null);
+
   useEffect(() => {
     liff.init({ liffId: LIFF_ID }).catch(console.error);
   }, []);
+
+  const lookupAddressFromPostalCode = async (zipcode: string) => {
+    if (!/^\d{7}$/.test(zipcode)) return;
+
+    setPostalStatus("住所を検索しています…");
+
+    try {
+      const res = await fetch(
+        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zipcode}`
+      );
+      const data = await res.json();
+
+      if (data.status === 200 && data.results?.[0]) {
+        const r = data.results[0];
+        setForm((p) => ({
+          ...p,
+          prefecture: r.address1,
+          city: `${r.address2}${r.address3}`,
+        }));
+        setPostalStatus(null);
+      } else {
+        setPostalStatus("住所が見つかりませんでした");
+      }
+    } catch {
+      setPostalStatus("住所検索に失敗しました");
+    }
+  };
+
+  const lookupMoveAddressFromPostalCode = async (zipcode: string) => {
+    if (!/^\d{7}$/.test(zipcode)) return;
+
+    setMovePostalStatus("住所を検索しています…");
+
+    try {
+      const res = await fetch(
+        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zipcode}`
+      );
+      const data = await res.json();
+
+      if (data.status === 200 && data.results?.[0]) {
+        const r = data.results[0];
+        setForm((p) => ({
+          ...p,
+          movePrefecture: r.address1,
+          moveCity: `${r.address2}${r.address3}`,
+        }));
+        setMovePostalStatus(null);
+      } else {
+        setMovePostalStatus("住所が見つかりませんでした");
+      }
+    } catch {
+      setMovePostalStatus("住所検索に失敗しました");
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -82,6 +139,21 @@ export default function Home() {
     >
   ) => {
     const { name, value } = e.target;
+
+    if (name === "postalCode") {
+      const v = value.replace(/\D/g, "");
+      setForm((p) => ({ ...p, postalCode: v }));
+      if (v.length === 7) lookupAddressFromPostalCode(v);
+      return;
+    }
+
+    if (name === "movePostalCode") {
+      const v = value.replace(/\D/g, "");
+      setForm((p) => ({ ...p, movePostalCode: v }));
+      if (v.length === 7) lookupMoveAddressFromPostalCode(v);
+      return;
+    }
+
     setForm((p) => ({ ...p, [name]: value }));
   };
 
@@ -96,13 +168,11 @@ export default function Home() {
     e.preventDefault();
     setError(null);
 
-    // 基本必須
     if (!form.name || !form.phone || !form.service || !form.pickupDate1) {
       setError("お名前・電話番号・ご希望サービス・第1希望日時は必須です。");
       return;
     }
 
-    // 回収現場住所 必須
     if (
       !form.postalCode ||
       !/^\d{7}$/.test(form.postalCode) ||
@@ -110,11 +180,10 @@ export default function Home() {
       !form.city ||
       !form.address1
     ) {
-      setError("回収現場住所（郵便番号7桁・都道府県・市区町村・住所）は必須です。");
+      setError("回収現場住所（郵便番号・都道府県・市区町村・住所）は必須です。");
       return;
     }
 
-    // 引越し先住所 必須（引越し時）
     if (
       form.service === "引越し" &&
       (
@@ -125,11 +194,10 @@ export default function Home() {
         !form.moveAddress1
       )
     ) {
-      setError("引越し先住所（郵便番号7桁・都道府県・市区町村・住所）は必須です。");
+      setError("引越し先住所（郵便番号・都道府県・市区町村・住所）は必須です。");
       return;
     }
 
-    // 回収・引越しする物 必須
     if (!form.items.trim()) {
       setError("回収・引越しする物の種類・個数は必須です。");
       return;
@@ -195,6 +263,8 @@ export default function Home() {
       setSubmitting(false);
     }
   };
+
+  /* UI 以下はあなたのコードから一切変更していません */
 
   /* ---- 以降 JSX / UI 部分はあなたのコードそのまま ---- */
   /* ここは一切削っていません */
