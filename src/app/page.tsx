@@ -350,21 +350,22 @@ export default function Home() {
 
             <SectionTitle label="回収現場住所" />
 
-            <Field label="郵便番号（7桁・任意）">
-              <input name="postalCode" value={form.postalCode} onChange={handleChange} type="text" style={inputStyle} />
-            </Field>
+            <SectionTitle label="回収現場住所" />
 
-            <Field label="都道府県（任意）">
-              <input name="prefecture" value={form.prefecture} onChange={handleChange} type="text" style={inputStyle} />
-            </Field>
-
-            <Field label="市区町村（任意）">
-              <input name="city" value={form.city} onChange={handleChange} type="text" style={inputStyle} />
-            </Field>
-
-            <Field label="住所（番地など・任意）">
-              <input name="address1" value={form.address1} onChange={handleChange} type="text" style={inputStyle} />
-            </Field>
+<Field label="郵便番号（7桁）" required>
+  <input
+    name="postalCode"
+    value={form.postalCode}
+    onChange={handleChange}
+              type="text"
+              inputMode="numeric"
+              style={inputStyle}
+            />
+            {postalStatus && (
+              <div style={{ marginTop: 4, fontSize: 11, color: "#888" }}>
+                {postalStatus}
+              </div>
+            )}
 
             <Field label="建物種類（任意）">
               <select name="buildingType" value={form.buildingType} onChange={handleChange} style={inputStyle}>
