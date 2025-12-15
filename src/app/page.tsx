@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import liff from "@line/liff";
 import styles from "./page.module.css";
 
 const LIFF_ID = "2008636045-8572KPnd";
 
-/* =========================
-   型定義
-========================= */
 type FormData = {
   name: string;
   phone: string;
@@ -17,12 +14,13 @@ type FormData = {
   prefecture: string;
   city: string;
   address1: string;
+  building: string;
 
   buildingType: string;
   parking: "あり" | "なし" | "";
   elevator: "あり" | "なし" | "";
 
-  service: "不用品回収" | "部屋を丸ごと片付け" | "引越し" | "";
+  service: string;
 
   movePostalCode: string;
   movePrefecture: string;
@@ -39,9 +37,6 @@ type FormData = {
   contactMethod: "LINE" | "電話";
 };
 
-/* =========================
-   初期値
-========================= */
 const initialFormData: FormData = {
   name: "",
   phone: "",
@@ -50,6 +45,7 @@ const initialFormData: FormData = {
   prefecture: "",
   city: "",
   address1: "",
+  building: "",
 
   buildingType: "",
   parking: "",
@@ -78,16 +74,10 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* =========================
-     LIFF 初期化
-  ========================= */
   useEffect(() => {
     liff.init({ liffId: LIFF_ID }).catch(console.error);
   }, []);
 
-  /* =========================
-     入力ハンドラ
-  ========================= */
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -104,30 +94,17 @@ export default function Home() {
     }));
   };
 
-  /* =========================
-     送信処理
-  ========================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (
-      !form.name ||
-      !form.phone ||
-      !form.service ||
-      !form.pickupDate1 ||
-      !form.buildingType ||
-      !form.parking ||
-      !form.elevator
-    ) {
+    if (!form.name || !form.phone || !form.service || !form.pickupDate1) {
       setError("必須項目が未入力です。");
       return;
     }
 
     const summaryText = [
       "📩 お問い合わせを受け付けました",
-      "",
-      "以下の内容で承りました。",
       "",
       "———",
       `【お名前】${form.name}`,
@@ -138,8 +115,9 @@ export default function Home() {
       form.service,
       "",
       "■ 回収現場住所",
-      `〒${form.postalCode || "未入力"}`,
+      `〒${form.postalCode}`,
       `${form.prefecture}${form.city}${form.address1}`,
+      form.building,
       "",
       `建物種類：${form.buildingType}`,
       `駐車場：${form.parking}`,
@@ -148,7 +126,7 @@ export default function Home() {
       form.service === "引越し"
         ? [
             "■ 引越し先住所",
-            `〒${form.movePostalCode || "未入力"}`,
+            `〒${form.movePostalCode}`,
             `${form.movePrefecture}${form.moveCity}${form.moveAddress1}`,
             "",
           ].join("\n")
@@ -164,113 +142,149 @@ export default function Home() {
       `■ 添付画像：${form.images.length}枚`,
       "",
       "内容を確認のうえ、担当者よりご連絡いたします。",
-      "このトークでそのままやり取りできます。",
-      "———",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ].join("\n");
 
     try {
       setSubmitting(true);
 
       if (liff.isInClient()) {
-        await liff.sendMessages([
-          {
-            type: "text",
-            text: summaryText,
-          },
-        ]);
+        await liff.sendMessages([{ type: "text", text: summaryText }]);
       }
 
       setSubmitted(true);
       setForm(initialFormData);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("送信に失敗しました。");
     } finally {
       setSubmitting(false);
     }
   };
 
-  /* =========================
-     UI
-  ========================= */
   return (
     <main className={styles.main}>
       <div className={styles.center}>
         <div className={styles.card}>
-          <h1>不用品回収・片付け ご相談フォーム</h1>
+          <h1>不用品回収・片付けご相談フォーム</h1>
 
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          {submitted && <p>送信しました。LINEをご確認ください。</p>}
+          {error && <ErrorBox>{error}</ErrorBox>}
+          {submitted && <InfoBox>送信しました。LINEをご確認ください。</InfoBox>}
 
           <form onSubmit={handleSubmit}>
-            <input name="name" placeholder="お名前" value={form.name} onChange={handleChange} />
-            <input name="phone" placeholder="電話番号（ハイフンなし）" value={form.phone} onChange={handleChange} />
+            <SectionTitle label="お客様情報" />
 
-            <input name="postalCode" placeholder="郵便番号" value={form.postalCode} onChange={handleChange} />
-            <input name="prefecture" placeholder="都道府県" value={form.prefecture} onChange={handleChange} />
-            <input name="city" placeholder="市区町村" value={form.city} onChange={handleChange} />
-            <input name="address1" placeholder="番地・建物名" value={form.address1} onChange={handleChange} />
+            <Field label="お名前" required>
+              <input name="name" value={form.name} onChange={handleChange} style={inputStyle} />
+            </Field>
 
-            <select name="buildingType" value={form.buildingType} onChange={handleChange}>
-              <option value="">建物種類</option>
-              <option value="戸建て">戸建て</option>
-              <option value="マンション・アパート">マンション・アパート</option>
-              <option value="倉庫">倉庫</option>
-              <option value="オフィス">オフィス</option>
-              <option value="その他">その他</option>
-            </select>
+            <Field label="電話番号" required>
+              <input name="phone" value={form.phone} onChange={handleChange} style={inputStyle} />
+            </Field>
 
-            <select name="parking" value={form.parking} onChange={handleChange}>
-              <option value="">駐車場の有無</option>
-              <option value="あり">あり</option>
-              <option value="なし">なし</option>
-            </select>
+            <SectionTitle label="回収現場住所" />
 
-            <select name="elevator" value={form.elevator} onChange={handleChange}>
-              <option value="">エレベーターの有無</option>
-              <option value="あり">あり</option>
-              <option value="なし">なし</option>
-            </select>
+            <Field label="郵便番号">
+              <input name="postalCode" value={form.postalCode} onChange={handleChange} style={inputStyle} />
+            </Field>
 
-            <select name="service" value={form.service} onChange={handleChange}>
-              <option value="">ご希望のサービス</option>
-              <option value="不用品回収">不用品回収</option>
-              <option value="部屋を丸ごと片付け">部屋を丸ごと片付け</option>
-              <option value="引越し">引越し</option>
-            </select>
+            <Field label="都道府県">
+              <input name="prefecture" value={form.prefecture} onChange={handleChange} style={inputStyle} />
+            </Field>
+
+            <Field label="市区町村">
+              <input name="city" value={form.city} onChange={handleChange} style={inputStyle} />
+            </Field>
+
+            <Field label="番地・建物名">
+              <input name="address1" value={form.address1} onChange={handleChange} style={inputStyle} />
+            </Field>
+
+            <Field label="建物種類">
+              <select name="buildingType" value={form.buildingType} onChange={handleChange} style={inputStyle}>
+                <option value="">選択してください</option>
+                <option value="戸建て">戸建て</option>
+                <option value="マンション・アパート">マンション・アパート</option>
+                <option value="倉庫">倉庫</option>
+                <option value="オフィス">オフィス</option>
+                <option value="その他">その他</option>
+              </select>
+            </Field>
+
+            <Field label="駐車場の有無">
+              <select name="parking" value={form.parking} onChange={handleChange} style={inputStyle}>
+                <option value="">選択してください</option>
+                <option value="あり">あり</option>
+                <option value="なし">なし</option>
+              </select>
+            </Field>
+
+            <Field label="エレベーターの有無">
+              <select name="elevator" value={form.elevator} onChange={handleChange} style={inputStyle}>
+                <option value="">選択してください</option>
+                <option value="あり">あり</option>
+                <option value="なし">なし</option>
+              </select>
+            </Field>
+
+            <SectionTitle label="ご希望内容" />
+
+            <Field label="ご希望サービス" required>
+              <select name="service" value={form.service} onChange={handleChange} style={inputStyle}>
+                <option value="">選択してください</option>
+                <option value="不用品回収">不用品回収</option>
+                <option value="部屋を丸ごと片付け">部屋を丸ごと片付け</option>
+                <option value="引越し">引越し</option>
+              </select>
+            </Field>
 
             {form.service === "引越し" && (
               <>
-                <h3>引越し先住所</h3>
-                <input name="movePostalCode" placeholder="郵便番号" value={form.movePostalCode} onChange={handleChange} />
-                <input name="movePrefecture" placeholder="都道府県" value={form.movePrefecture} onChange={handleChange} />
-                <input name="moveCity" placeholder="市区町村" value={form.moveCity} onChange={handleChange} />
-                <input name="moveAddress1" placeholder="番地・建物名" value={form.moveAddress1} onChange={handleChange} />
+                <SectionTitle label="引越し先住所" />
+                <Field label="郵便番号">
+                  <input name="movePostalCode" value={form.movePostalCode} onChange={handleChange} style={inputStyle} />
+                </Field>
+                <Field label="都道府県">
+                  <input name="movePrefecture" value={form.movePrefecture} onChange={handleChange} style={inputStyle} />
+                </Field>
+                <Field label="市区町村">
+                  <input name="moveCity" value={form.moveCity} onChange={handleChange} style={inputStyle} />
+                </Field>
+                <Field label="番地・建物名">
+                  <input name="moveAddress1" value={form.moveAddress1} onChange={handleChange} style={inputStyle} />
+                </Field>
               </>
             )}
 
-            <textarea
-              name="items"
-              placeholder="回収・引越しする物の種類・個数"
-              value={form.items}
-              onChange={handleChange}
-            />
+            <Field label="回収・引越しする物の種類・個数">
+              <textarea name="items" value={form.items} onChange={handleChange} rows={3} style={inputStyle} />
+            </Field>
 
-            <input type="file" multiple accept="image/*" onChange={handleFileChange} />
+            <Field label="添付画像">
+              <input type="file" multiple accept="image/*" onChange={handleFileChange} />
+            </Field>
 
-            <input type="datetime-local" name="pickupDate1" value={form.pickupDate1} onChange={handleChange} />
-            <input type="datetime-local" name="pickupDate2" value={form.pickupDate2} onChange={handleChange} />
-            <input type="datetime-local" name="pickupDate3" value={form.pickupDate3} onChange={handleChange} />
+            <SectionTitle label="お引き取り希望日時" />
 
-            <select name="contactMethod" value={form.contactMethod} onChange={handleChange}>
-              <option value="LINE">LINEでやり取りしたい</option>
-              <option value="電話">電話でやり取りしたい</option>
-            </select>
+            <Field label="第1希望" required>
+              <input type="datetime-local" name="pickupDate1" value={form.pickupDate1} onChange={handleChange} style={inputStyle} />
+            </Field>
 
-            <button type="submit" disabled={submitting}>
-              {submitting ? "送信中…" : "この内容で送信する"}
+            <Field label="第2希望">
+              <input type="datetime-local" name="pickupDate2" value={form.pickupDate2} onChange={handleChange} style={inputStyle} />
+            </Field>
+
+            <Field label="第3希望">
+              <input type="datetime-local" name="pickupDate3" value={form.pickupDate3} onChange={handleChange} style={inputStyle} />
+            </Field>
+
+            <Field label="やり取り方法">
+              <select name="contactMethod" value={form.contactMethod} onChange={handleChange} style={inputStyle}>
+                <option value="LINE">LINEでやり取りしたい</option>
+                <option value="電話">電話でやり取りしたい</option>
+              </select>
+            </Field>
+
+            <button type="submit" disabled={submitting} style={submitStyle}>
+              {submitting ? "送信中..." : "この内容で送信する"}
             </button>
           </form>
         </div>
@@ -278,3 +292,47 @@ export default function Home() {
     </main>
   );
 }
+
+/* ===== 共通UI ===== */
+
+const SectionTitle = ({ label }: { label: string }) => (
+  <h2 style={{ fontSize: 13, fontWeight: 700, margin: "18px 0 6px" }}>{label}</h2>
+);
+
+const Field = ({ label, required, children }: any) => (
+  <div style={{ marginBottom: 10 }}>
+    <label style={{ fontSize: 12, fontWeight: 600 }}>
+      {label}
+      {required && <span style={{ color: "#d00" }}>＊</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const ErrorBox = ({ children }: any) => (
+  <div style={{ background: "#ffe5e5", color: "#b00020", padding: 8, borderRadius: 6 }}>{children}</div>
+);
+
+const InfoBox = ({ children }: any) => (
+  <div style={{ background: "#e6f7ff", color: "#0050b3", padding: 8, borderRadius: 6 }}>{children}</div>
+);
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #ddd",
+  fontSize: 13,
+};
+
+const submitStyle: React.CSSProperties = {
+  width: "100%",
+  marginTop: 12,
+  padding: "10px 16px",
+  borderRadius: 999,
+  border: "none",
+  background: "#00c300",
+  color: "white",
+  fontWeight: 700,
+  fontSize: 15,
+};
