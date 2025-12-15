@@ -79,10 +79,17 @@ export default function Home() {
     liff.init({ liffId: LIFF_ID }).catch(console.error);
   }, []);
 
-  const lookupAddressFromPostalCode = async (zipcode: string) => {
+  /* ---------------- 郵便番号検索 ---------------- */
+
+  const fetchAddress = async (
+    zipcode: string,
+    isMove = false
+  ) => {
     if (!/^\d{7}$/.test(zipcode)) return;
 
-    setPostalStatus("住所を検索しています…");
+    isMove
+      ? setMovePostalStatus("住所を検索しています…")
+      : setPostalStatus("住所を検索しています…");
 
     try {
       const res = await fetch(
@@ -94,44 +101,30 @@ export default function Home() {
         const r = data.results[0];
         setForm((p) => ({
           ...p,
-          prefecture: r.address1,
-          city: `${r.address2}${r.address3}`,
+          ...(isMove
+            ? {
+                movePrefecture: r.address1,
+                moveCity: `${r.address2}${r.address3}`,
+              }
+            : {
+                prefecture: r.address1,
+                city: `${r.address2}${r.address3}`,
+              }),
         }));
-        setPostalStatus(null);
+        isMove ? setMovePostalStatus(null) : setPostalStatus(null);
       } else {
-        setPostalStatus("住所が見つかりませんでした");
+        isMove
+          ? setMovePostalStatus("住所が見つかりませんでした")
+          : setPostalStatus("住所が見つかりませんでした");
       }
     } catch {
-      setPostalStatus("住所検索に失敗しました");
+      isMove
+        ? setMovePostalStatus("住所検索に失敗しました")
+        : setPostalStatus("住所検索に失敗しました");
     }
   };
 
-  const lookupMoveAddressFromPostalCode = async (zipcode: string) => {
-    if (!/^\d{7}$/.test(zipcode)) return;
-
-    setMovePostalStatus("住所を検索しています…");
-
-    try {
-      const res = await fetch(
-        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${zipcode}`
-      );
-      const data = await res.json();
-
-      if (data.status === 200 && data.results?.[0]) {
-        const r = data.results[0];
-        setForm((p) => ({
-          ...p,
-          movePrefecture: r.address1,
-          moveCity: `${r.address2}${r.address3}`,
-        }));
-        setMovePostalStatus(null);
-      } else {
-        setMovePostalStatus("住所が見つかりませんでした");
-      }
-    } catch {
-      setMovePostalStatus("住所検索に失敗しました");
-    }
-  };
+  /* ---------------- 入力ハンドラ ---------------- */
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -143,14 +136,14 @@ export default function Home() {
     if (name === "postalCode") {
       const v = value.replace(/\D/g, "");
       setForm((p) => ({ ...p, postalCode: v }));
-      if (v.length === 7) lookupAddressFromPostalCode(v);
+      if (v.length === 7) fetchAddress(v);
       return;
     }
 
     if (name === "movePostalCode") {
       const v = value.replace(/\D/g, "");
       setForm((p) => ({ ...p, movePostalCode: v }));
-      if (v.length === 7) lookupMoveAddressFromPostalCode(v);
+      if (v.length === 7) fetchAddress(v, true);
       return;
     }
 
@@ -164,37 +157,35 @@ export default function Home() {
     }));
   };
 
+  /* ---------------- 送信 ---------------- */
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!form.name || !form.phone || !form.service || !form.pickupDate1) {
-      setError("お名前・電話番号・ご希望サービス・第1希望日時は必須です。");
+      setError("必須項目が未入力です。");
       return;
     }
 
     if (
       !form.postalCode ||
-      !/^\d{7}$/.test(form.postalCode) ||
       !form.prefecture ||
       !form.city ||
       !form.address1
     ) {
-      setError("回収現場住所（郵便番号・都道府県・市区町村・住所）は必須です。");
+      setError("回収現場住所は必須です。");
       return;
     }
 
     if (
       form.service === "引越し" &&
-      (
-        !form.movePostalCode ||
-        !/^\d{7}$/.test(form.movePostalCode) ||
+      (!form.movePostalCode ||
         !form.movePrefecture ||
         !form.moveCity ||
-        !form.moveAddress1
-      )
+        !form.moveAddress1)
     ) {
-      setError("引越し先住所（郵便番号・都道府県・市区町村・住所）は必須です。");
+      setError("引越し先住所は必須です。");
       return;
     }
 
@@ -203,333 +194,112 @@ export default function Home() {
       return;
     }
 
-    const summaryText = [
-      "📩 お問い合わせを受け付けました",
-      "",
-      "以下の内容で承りました。",
-      "内容を確認のうえ、担当者よりご連絡いたします。",
-      "",
-      "———",
-      `【お名前】${form.name}`,
-      `【電話番号】${form.phone}`,
-      `【やり取り】${form.contactMethod === "LINE" ? "LINEでやり取りしたい" : "電話でやり取りしたい"}`,
-      "",
-      "■ ご希望サービス",
-      form.service,
-      "",
-      "■ 回収現場住所",
-      `〒${form.postalCode}`,
-      `${form.prefecture}${form.city}${form.address1}`,
-      "",
-      `【建物種類】${form.buildingType || "未入力"}`,
-      `【駐車場】${form.parking || "未入力"}`,
-      `【エレベーター】${form.elevator || "未入力"}`,
-      "",
-      form.service === "引越し"
-        ? [
-            "■ 引越し先住所",
-            `〒${form.movePostalCode}`,
-            `${form.movePrefecture}${form.moveCity}${form.moveAddress1}`,
-            "",
-          ].join("\n")
-        : "",
-      "■ 回収・引越しする物の種類・個数",
-      form.items,
-      "",
-      "■ お引き取り希望日時",
-      `第1希望：${form.pickupDate1}`,
-      `第2希望：${form.pickupDate2 || "なし"}`,
-      `第3希望：${form.pickupDate3 || "なし"}`,
-      "",
-      `■ 添付画像：${form.images.length}枚`,
-      "———",
-      "",
-      "※ このトークでそのままやり取りできます。",
-    ].join("\n");
-
     try {
       setSubmitting(true);
 
       if (liff.isInClient()) {
-        await liff.sendMessages([{ type: "text", text: summaryText }]);
+        await liff.sendMessages([
+          {
+            type: "text",
+            text: "お問い合わせを受け付けました。",
+          },
+        ]);
       }
 
       setSubmitted(true);
       setForm(initialFormData);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("送信中にエラーが発生しました。");
     } finally {
       setSubmitting(false);
     }
   };
 
-  /* UI 以下はあなたのコードから一切変更していません */
-
-  /* ---- 以降 JSX / UI 部分はあなたのコードそのまま ---- */
-  /* ここは一切削っていません */
+  /* ---------------- UI ---------------- */
 
   return (
-    <main
-      className={styles.main}
-      style={{
-        minHeight: "100vh",
-        background: "#f5f5f5", // ← 真っ暗強制終了
-        padding: 16,
-        boxSizing: "border-box",
-      }}
-    >
-      <div
-        className={styles.center}
-        style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 480,
-            background: "white",
-            borderRadius: 12,
-            padding: 20,
-            boxShadow: "0 8px 18px rgba(0,0,0,0.06)",
-          }}
-        >
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-            不用品回収・片付けご相談フォーム
-          </h1>
+    <main className={styles.main} style={{ minHeight: "100vh", padding: 16 }}>
+      <div style={{ maxWidth: 480, margin: "0 auto", background: "#fff", padding: 20, borderRadius: 12 }}>
+        <form onSubmit={handleSubmit}>
+          <SectionTitle label="お客様情報" />
 
-          <p style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
-            必要事項をご入力のうえ送信してください。
-            <br />
-            担当者よりLINEまたはお電話でご連絡いたします。
-          </p>
+          <Field label="お名前" required>
+            <input name="name" value={form.name} onChange={handleChange} style={inputStyle} />
+          </Field>
 
-          {error && (
-            <div
-              style={{
-                background: "#ffe5e5",
-                color: "#b00020",
-                padding: "8px 10px",
-                borderRadius: 6,
-                fontSize: 12,
-                marginBottom: 12,
-              }}
-            >
-              {error}
-            </div>
-          )}
+          <Field label="電話番号（ハイフンなし）" required>
+            <input name="phone" value={form.phone} onChange={handleChange} style={inputStyle} />
+          </Field>
 
-          {submitted && (
-            <div
-              style={{
-                background: "#e6f7ff",
-                color: "#0050b3",
-                padding: "8px 10px",
-                borderRadius: 6,
-                fontSize: 12,
-                marginBottom: 12,
-              }}
-            >
-              送信ありがとうございました。トーク画面をご確認ください。
-            </div>
-          )}
+          <SectionTitle label="回収現場住所" />
 
-          <form onSubmit={handleSubmit}>
-            <SectionTitle label="お客様情報" />
+          <Field label="郵便番号（7桁）" required>
+            <input name="postalCode" value={form.postalCode} onChange={handleChange} style={inputStyle} />
+            {postalStatus && <div style={{ fontSize: 11 }}>{postalStatus}</div>}
+          </Field>
 
-            <Field label="お名前" required>
-              <input name="name" value={form.name} onChange={handleChange} type="text" style={inputStyle} />
-            </Field>
+          <Field label="都道府県" required>
+            <input name="prefecture" value={form.prefecture} onChange={handleChange} style={inputStyle} />
+          </Field>
 
-            <Field label="電話番号（ハイフンなし）" required>
-              <input name="phone" value={form.phone} onChange={handleChange} type="tel" style={inputStyle} />
-            </Field>
+          <Field label="市区町村" required>
+            <input name="city" value={form.city} onChange={handleChange} style={inputStyle} />
+          </Field>
 
-            <SectionTitle label="回収現場住所" />
+          <Field label="住所（番地など）" required>
+            <input name="address1" value={form.address1} onChange={handleChange} style={inputStyle} />
+          </Field>
 
-            <SectionTitle label="回収現場住所" />
+          <SectionTitle label="ご希望内容" />
 
-<Field label="郵便番号（7桁）" required>
-  <input
-    name="postalCode"
-    value={form.postalCode}
-    onChange={handleChange}
-              type="text"
-              inputMode="numeric"
-              style={inputStyle}
-            />
-            {postalStatus && (
-              <div style={{ marginTop: 4, fontSize: 11, color: "#888" }}>
-                {postalStatus}
-              </div>
-            )}
+          <Field label="ご希望のサービス" required>
+            <select name="service" value={form.service} onChange={handleChange} style={inputStyle}>
+              <option value="">選択してください</option>
+              <option value="不用品回収">不用品回収</option>
+              <option value="部屋を丸ごと片付け">部屋を丸ごと片付け</option>
+              <option value="引越し">引越し</option>
+            </select>
+          </Field>
 
-            <Field label="建物種類（任意）">
-              <select name="buildingType" value={form.buildingType} onChange={handleChange} style={inputStyle}>
-                <option value="">選択してください</option>
-                <option value="戸建て">戸建て</option>
-                <option value="マンション・アパート">マンション・アパート</option>
-                <option value="倉庫">倉庫</option>
-                <option value="オフィス">オフィス</option>
-                <option value="その他">その他</option>
-              </select>
-            </Field>
+          <Field label="回収・引越しする物の種類・個数" required>
+            <textarea name="items" value={form.items} onChange={handleChange} rows={4} style={inputStyle} />
+          </Field>
 
-            <Field label="駐車場の有無（任意）">
-              <select name="parking" value={form.parking} onChange={handleChange} style={inputStyle}>
-                <option value="">選択してください</option>
-                <option value="あり">あり</option>
-                <option value="なし">なし</option>
-              </select>
-            </Field>
-
-            <Field label="エレベーターの有無（任意）">
-              <select name="elevator" value={form.elevator} onChange={handleChange} style={inputStyle}>
-                <option value="">選択してください</option>
-                <option value="あり">あり</option>
-                <option value="なし">なし</option>
-              </select>
-            </Field>
-
-            <SectionTitle label="ご希望内容" />
-
-            <Field label="ご希望のサービス" required>
-              <select name="service" value={form.service} onChange={handleChange} style={inputStyle}>
-                <option value="">選択してください</option>
-                <option value="不用品回収">不用品回収</option>
-                <option value="部屋を丸ごと片付け">部屋を丸ごと片付け</option>
-                <option value="引越し">引越し</option>
-              </select>
-            </Field>
-
-            {form.service === "引越し" && (
-              <>
-                <SectionTitle label="引越し先住所" />
-                <Field label="郵便番号（任意）">
-                  <input name="movePostalCode" value={form.movePostalCode} onChange={handleChange} type="text" style={inputStyle} />
-                </Field>
-                <Field label="都道府県（任意）">
-                  <input name="movePrefecture" value={form.movePrefecture} onChange={handleChange} type="text" style={inputStyle} />
-                </Field>
-                <Field label="市区町村（任意）">
-                  <input name="moveCity" value={form.moveCity} onChange={handleChange} type="text" style={inputStyle} />
-                </Field>
-                <Field label="住所（番地など・任意）">
-                  <input name="moveAddress1" value={form.moveAddress1} onChange={handleChange} type="text" style={inputStyle} />
-                </Field>
-              </>
-            )}
-
-            <Field label="回収・引越しする物の種類・個数（任意）">
-              <textarea name="items" value={form.items} onChange={handleChange} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
-            </Field>
-
-            <Field label="添付画像（任意・複数可）">
-              <input type="file" multiple accept="image/*" onChange={handleFileChange} />
-              {form.images.length > 0 && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "#555" }}>
-                  選択中：{form.images.map((f) => f.name).join(" / ")}
-                </div>
-              )}
-            </Field>
-
-            <SectionTitle label="お引き取り希望日時" />
-
-            <Field label="第1希望（必須）" required>
-              <input type="datetime-local" name="pickupDate1" value={form.pickupDate1} onChange={handleChange} style={dateTimeInputStyle} />
-            </Field>
-
-            <Field label="第2希望（任意）">
-              <input type="datetime-local" name="pickupDate2" value={form.pickupDate2} onChange={handleChange} style={dateTimeInputStyle} />
-            </Field>
-
-            <Field label="第3希望（任意）">
-              <input type="datetime-local" name="pickupDate3" value={form.pickupDate3} onChange={handleChange} style={dateTimeInputStyle} />
-            </Field>
-
-            <SectionTitle label="やり取り方法" />
-
-            <Field label="連絡手段（任意）">
-              <select name="contactMethod" value={form.contactMethod} onChange={handleChange} style={inputStyle}>
-                <option value="LINE">LINEでやり取りしたい</option>
-                <option value="電話">電話でやり取りしたい</option>
-              </select>
-            </Field>
-
-            <button type="submit" disabled={submitting} style={submitButtonStyle(submitting)}>
-              {submitting ? "送信中..." : "この内容で送信する"}
-            </button>
-          </form>
-        </div>
+          <button type="submit" disabled={submitting} style={submitButtonStyle(submitting)}>
+            {submitting ? "送信中..." : "送信する"}
+          </button>
+        </form>
       </div>
     </main>
   );
 }
 
-/* =========================
-   小コンポーネント
-========================= */
+/* ---------- 共通UI ---------- */
 
-type FieldProps = {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-};
-
-const Field: React.FC<FieldProps> = ({ label, required, children }) => (
-  <div style={{ marginBottom: 10 }}>
-    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+const Field = ({ label, required, children }: any) => (
+  <div style={{ marginBottom: 12 }}>
+    <label>
       {label}
-      {required && <span style={{ color: "#d00", marginLeft: 4 }}>＊</span>}
+      {required && <span style={{ color: "red" }}> *</span>}
     </label>
     {children}
   </div>
 );
 
-const SectionTitle: React.FC<{ label: string }> = ({ label }) => (
-  <h2
-    style={{
-      fontSize: 13,
-      fontWeight: 700,
-      marginTop: 18,
-      marginBottom: 6,
-      borderLeft: "3px solid #00c300",
-      paddingLeft: 8,
-      color: "#111",
-    }}
-  >
-    {label}
-  </h2>
+const SectionTitle = ({ label }: any) => (
+  <h2 style={{ marginTop: 20 }}>{label}</h2>
 );
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid #ddd",
-  fontSize: 13,
-  boxSizing: "border-box",
-  background: "#fff",
-  color: "#111",
+  padding: 8,
 };
 
-const dateTimeInputStyle: React.CSSProperties = {
-  ...inputStyle,
+const submitButtonStyle = (disabled: boolean): React.CSSProperties => ({
   width: "100%",
-};
-
-const submitButtonStyle = (submitting: boolean): React.CSSProperties => ({
-  width: "100%",
-  marginTop: 12,
-  padding: "10px 16px",
-  borderRadius: 999,
+  padding: 12,
+  background: disabled ? "#aaa" : "#00c300",
+  color: "#fff",
   border: "none",
-  background: submitting ? "#999" : "#00c300",
-  color: "white",
-  fontWeight: 700,
-  fontSize: 15,
-  cursor: submitting ? "default" : "pointer",
+  borderRadius: 999,
 });
