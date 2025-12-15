@@ -524,7 +524,17 @@ export default function Home() {
             )}
 
             {/* 物：必須に変更 */}
-            <Field label="回収・引越しする物の種類・個数\n（画像はトーク画面にお送りください）" required>
+            <Field
+              label={
+                <>
+                  回収・引越しする物の種類・個数
+                  <br />
+                  （画像はトーク画面にお送りください）
+                </>
+              }
+              required
+            >
+
               <textarea
                 name="items"
                 value={form.items}
