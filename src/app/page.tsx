@@ -524,7 +524,7 @@ export default function Home() {
             )}
 
             {/* 物：必須に変更 */}
-            <Field label="回収・引越しする物の種類・個数" required>
+            <Field label="回収・引越しする物の種類・個数\n（画像はトーク画面にお送りください）" required>
               <textarea
                 name="items"
                 value={form.items}
@@ -534,19 +534,6 @@ export default function Home() {
               />
             </Field>
 
-            <Field label="添付画像（任意・複数可）">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileChange}
-              />
-              {form.images.length > 0 && (
-                <div style={{ marginTop: 4, fontSize: 11, color: "#555" }}>
-                  選択中：{form.images.map((f) => f.name).join(" / ")}
-                </div>
-              )}
-            </Field>
 
             <SectionTitle label="お引き取り希望日時" />
 
