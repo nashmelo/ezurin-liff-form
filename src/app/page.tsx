@@ -609,8 +609,8 @@ export default function Home() {
    小コンポーネント
 ========================= */
 
-type FieldProps = {
-  label: string;
+ttype FieldProps = {
+  label: React.ReactNode;
   required?: boolean;
   children: React.ReactNode;
 };
