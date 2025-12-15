@@ -96,8 +96,42 @@ export default function Home() {
     e.preventDefault();
     setError(null);
 
+    // 基本必須
     if (!form.name || !form.phone || !form.service || !form.pickupDate1) {
       setError("お名前・電話番号・ご希望サービス・第1希望日時は必須です。");
+      return;
+    }
+
+    // 回収現場住所 必須
+    if (
+      !form.postalCode ||
+      !/^\d{7}$/.test(form.postalCode) ||
+      !form.prefecture ||
+      !form.city ||
+      !form.address1
+    ) {
+      setError("回収現場住所（郵便番号7桁・都道府県・市区町村・住所）は必須です。");
+      return;
+    }
+
+    // 引越し先住所 必須（引越し時）
+    if (
+      form.service === "引越し" &&
+      (
+        !form.movePostalCode ||
+        !/^\d{7}$/.test(form.movePostalCode) ||
+        !form.movePrefecture ||
+        !form.moveCity ||
+        !form.moveAddress1
+      )
+    ) {
+      setError("引越し先住所（郵便番号7桁・都道府県・市区町村・住所）は必須です。");
+      return;
+    }
+
+    // 回収・引越しする物 必須
+    if (!form.items.trim()) {
+      setError("回収・引越しする物の種類・個数は必須です。");
       return;
     }
 
@@ -116,7 +150,7 @@ export default function Home() {
       form.service,
       "",
       "■ 回収現場住所",
-      `〒${form.postalCode || "未入力"}`,
+      `〒${form.postalCode}`,
       `${form.prefecture}${form.city}${form.address1}`,
       "",
       `【建物種類】${form.buildingType || "未入力"}`,
@@ -126,13 +160,13 @@ export default function Home() {
       form.service === "引越し"
         ? [
             "■ 引越し先住所",
-            `〒${form.movePostalCode || "未入力"}`,
+            `〒${form.movePostalCode}`,
             `${form.movePrefecture}${form.moveCity}${form.moveAddress1}`,
             "",
           ].join("\n")
         : "",
       "■ 回収・引越しする物の種類・個数",
-      form.items || "未入力",
+      form.items,
       "",
       "■ お引き取り希望日時",
       `第1希望：${form.pickupDate1}`,
@@ -161,6 +195,9 @@ export default function Home() {
       setSubmitting(false);
     }
   };
+
+  /* ---- 以降 JSX / UI 部分はあなたのコードそのまま ---- */
+  /* ここは一切削っていません */
 
   return (
     <main
