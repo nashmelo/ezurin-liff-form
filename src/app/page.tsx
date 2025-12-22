@@ -75,6 +75,13 @@ export default function Home() {
   const [postalStatus, setPostalStatus] = useState<string | null>(null);
   const [movePostalStatus, setMovePostalStatus] = useState<string | null>(null);
 
+  const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+
   useEffect(() => {
     liff.init({ liffId: LIFF_ID }).catch(console.error);
   }, []);
@@ -262,6 +269,8 @@ export default function Home() {
       setForm(initialFormData);
       setPostalStatus(null);
       setMovePostalStatus(null);
+      scrollToTop();
+      
     } catch (err) {
       console.error(err);
       setError("送信中にエラーが発生しました。");
