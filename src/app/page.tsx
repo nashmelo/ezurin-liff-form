@@ -350,6 +350,10 @@ export default function Home() {
               }}
             >
               送信ありがとうございました。トーク画面をご確認ください。
+              <br />
+              <span style = {{ fontSize: 11, color: "#555"}}>
+              ※画像をトーク画面にお貼りいただくと、より正確なお見積もりが可能です。
+              </span>
             </div>
           )}
 
