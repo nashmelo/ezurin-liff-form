@@ -82,6 +82,21 @@ export default function Home() {
   });
 };
 
+const formatDateTimeJP = (value: string) => {
+  if (!value) return "なし";
+
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value; // 念のため保険
+
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const h = d.getHours();
+  const min = d.getMinutes().toString().padStart(2, "0");
+
+  return `${y}年${m}月${day}日${h}時${min}分`;
+};
+
   useEffect(() => {
     liff.init({ liffId: LIFF_ID }).catch(console.error);
   }, []);
@@ -252,9 +267,9 @@ export default function Home() {
       form.items,
       "",
       "■ お引き取り希望日時",
-      `第1希望：${form.pickupDate1}`,
-      `第2希望：${form.pickupDate2 || "なし"}`,
-      `第3希望：${form.pickupDate3 || "なし"}`,
+      `第1希望：${formatDateTimeJP(form.pickupDate1)}`,
+      `第2希望：${formatDateTimeJP(form.pickupDate2) }`,
+      `第3希望：${formatDateTimeJP(form.pickupDate3)}`,
       "",
       "———",
       "",
