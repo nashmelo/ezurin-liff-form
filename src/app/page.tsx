@@ -29,6 +29,8 @@ type FormData = {
   items: string;
   images: File[];
 
+  airconRemoval: "ある" | "ない";
+
   pickupDate1: string;
   pickupDate2: string;
   pickupDate3: string;
@@ -58,6 +60,8 @@ const initialFormData: FormData = {
 
   items: "",
   images: [],
+
+  airconRemoval: "ない",
 
   pickupDate1: "",
   pickupDate2: "",
@@ -265,10 +269,11 @@ const formatDateTimeJP = (value: string) => {
         : "",
       "■ 回収・引越しする物の種類・個数",
       form.items,
+      `【エアコン取り外し】${form.airconRemoval}`,
       "",
       "■ お引き取り希望日時",
       `第1希望：${formatDateTimeJP(form.pickupDate1)}`,
-      `第2希望：${formatDateTimeJP(form.pickupDate2) }`,
+      `第2希望：${formatDateTimeJP(form.pickupDate2)}`,
       `第3希望：${formatDateTimeJP(form.pickupDate3)}`,
       "",
       "———",
@@ -575,7 +580,17 @@ const formatDateTimeJP = (value: string) => {
                 style={{ ...inputStyle, resize: "vertical" }}
               />
             </Field>
-
+            <Field label="エアコンの取り外し作業（任意）">
+                <select
+                  name="airconRemoval"
+                  value={form.airconRemoval}
+                  onChange={handleChange}
+                  style={inputStyle}
+                >
+                  <option value="ない">ない</option>
+                  <option value="ある">ある</option>
+                </select>
+              </Field>
 
             <SectionTitle label="お引き取り希望日時" />
 
