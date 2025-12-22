@@ -386,6 +386,7 @@ const formatDateTimeJP = (value: string) => {
                 value={form.name}
                 onChange={handleChange}
                 type="text"
+                placeholder="エヅリン太郎"
                 style={inputStyle}
               />
             </Field>
@@ -396,6 +397,7 @@ const formatDateTimeJP = (value: string) => {
                 value={form.phone}
                 onChange={handleChange}
                 type="tel"
+                placeholder="09012345678"
                 style={inputStyle}
               />
             </Field>
@@ -409,6 +411,7 @@ const formatDateTimeJP = (value: string) => {
                 value={form.postalCode}
                 onChange={handleChange}
                 type="text"
+                placeholder="3210123"
                 inputMode="numeric"
                 style={inputStyle}
               />
@@ -577,6 +580,7 @@ const formatDateTimeJP = (value: string) => {
                 value={form.items}
                 onChange={handleChange}
                 rows={4}
+                placeholder="例:冷蔵庫1台、洗濯機1台、タンス2棹"
                 style={{ ...inputStyle, resize: "vertical" }}
               />
             </Field>
