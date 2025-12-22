@@ -175,6 +175,7 @@ export default function Home() {
 
     if (!form.name || !form.phone || !form.service || !form.pickupDate1) {
       setError("お名前・電話番号・ご希望サービス・第1希望日時は必須です。");
+      scrollToTop();
       return;
     }
 
@@ -187,6 +188,7 @@ export default function Home() {
       !form.address1
     ) {
       setError("回収現場住所（郵便番号・都道府県・市区町村・住所）は必須です。");
+      scrollToTop();
       return;
     }
 
@@ -200,12 +202,14 @@ export default function Home() {
         !form.moveAddress1)
     ) {
       setError("引越し先住所（郵便番号・都道府県・市区町村・住所）は必須です。");
+      scrollToTop();
       return;
     }
 
     // 物：必須
     if (!form.items.trim()) {
       setError("回収・引越しする物の種類・個数は必須です。");
+      scrollToTop();
       return;
     }
 
@@ -223,6 +227,8 @@ export default function Home() {
           ? "LINEでやり取りしたい"
           : "電話でやり取りしたい"
       }`,
+      "",
+      "画像をトーク画面にお貼りいただくと、より正確なお見積もりが可能です。",
       "",
       "■ ご希望サービス",
       form.service,
